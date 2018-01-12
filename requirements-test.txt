@@ -1,0 +1,10 @@
+coverage
+flake8
+pylint
+pytest
+pytest-cov
+Sphinx
+sphinx-rtd-theme
+tox
+twine
+wheel

@@ -1,0 +1,15 @@
+graft src
+graft tests
+
+include AUTHORS.rst
+include CONTRIBUTING.rst
+include CHANGELOG.rst
+include LICENSE.rst
+include README.rst
+include requirements.txt
+include requirements-test.txt
+include requirements-dev.txt
+include tox.ini
+
+recursive-include docs *.rst conf.py Makefile
+global-exclude *.py[cod] __pycache__

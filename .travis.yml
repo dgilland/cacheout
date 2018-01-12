@@ -1,0 +1,14 @@
+# Config file for automatic testing at travis-ci.org
+sudo: false
+language: python
+python:
+  - "3.4"
+  - "3.5"
+  - "3.6"
+install:
+  - pip install tox-travis
+script:
+  - tox
+after_success:
+  - pip install coveralls
+  - coveralls
