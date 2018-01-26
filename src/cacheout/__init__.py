@@ -11,3 +11,5 @@ from .__pkg__ import (
     __email__,
     __license__
 )
+
+from .cache import Cache

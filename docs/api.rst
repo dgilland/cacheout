@@ -9,3 +9,10 @@ API Reference
 
 
 .. automodule:: cacheout
+
+
+Cache
+-----
+
+.. automodule:: cacheout.cache
+    :members:
