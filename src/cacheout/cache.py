@@ -318,29 +318,42 @@ class Cache(object):
         """
         return self._expires.copy()
 
-    def evict(self):
+    def evict(self, minimum=1):
         """Perform cache eviction per the cache replacement policy:
 
         - First, remove **all** expired entries.
         - Then, remove non-TTL entries using using FIFO.
 
+        Args:
+            minimum (int, optional): Minimum number of cache entries to evict
+                if the cache is full.
+
         Returns:
             int: Number of cache entries evicted.
         """
-        if not self.full():
-            return 0
-
         with self._lock:
-            return self._evict()
+            return self._evict(minimum)
 
-    def _evict(self):
-        count = self._delete_expired()
+    def _evict(self, minimum=1):
+        count = 0
 
-        while len(self) >= self.maxsize:
-            # Delete items in cache starting with the first one and continuing
-            # until we're under our maxsize.
+        if not self.full():
+            return count
+
+        number_to_delete = len(self) - self.maxsize + minimum
+
+        if number_to_delete < 0:
+            return count
+
+        count += self._delete_expired()
+
+        while count < number_to_delete:
+            # Optimize method for getting the first cache entry. We need to
+            # break after each time since we are going to delete entries.
+            # (i.e. can't loop through the cache while deleting it).
             for key in self._cache:
                 break
+
             count += self._delete(key)
 
         return count
