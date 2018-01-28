@@ -1,9 +1,18 @@
 
 from collections import OrderedDict
 from contextlib import suppress
+from functools import wraps
 from decimal import Decimal
 from threading import RLock
 import time
+
+
+def _lock(func):
+    @wraps(func)
+    def decorated(self, *args, **kargs):
+        with self._lock:
+            return func(self, *args, **kargs)
+    return decorated
 
 
 class Cache(object):
@@ -69,10 +78,10 @@ class Cache(object):
     def __iter__(self):
         yield from self.copy()
 
+    @_lock
     def copy(self):
         """Return a copy of the cache."""
-        with self._lock:
-            return self._cache.copy()
+        return self._cache.copy()
 
     def keys(self):
         """Return a dict view object of cache keys."""
@@ -98,22 +107,23 @@ class Cache(object):
         """
         return self.copy().items()
 
+    @_lock
     def clear(self):
         """Clear all cache entries."""
         self._cache = OrderedDict()
         self._expires = {}
 
+    @_lock
     def has(self, key):
         """Return whether cache key exists and hasn't expired.
 
         Returns:
             bool
         """
-        with self._lock:
-            # Use get method since it will take care of evicting expired keys.
-            with suppress(KeyError):
-                self._get(key)
-            return key in self
+        # Use get method since it will take care of evicting expired keys.
+        with suppress(KeyError):
+            self.get(key)
+        return key in self
 
     def count(self):
         """Return number of cache entries."""
@@ -129,6 +139,7 @@ class Cache(object):
             return False
         return len(self) >= self.maxsize
 
+    @_lock
     def get(self, key, default=None):
         """Return the cache value for `key` or `default` if it doesn't exist or
         has expired.
@@ -142,13 +153,17 @@ class Cache(object):
             mixed: The cached value.
         """
         try:
-            with self._lock:
-                value = self._get(key)
+            value = self._cache[key]
+
+            if self.expired(key):
+                self.delete(key)
+                raise KeyError()
         except KeyError:
             value = default
 
         return value
 
+    @_lock
     def get_many(self, keys, default=None):
         """Return many cache values as a ``dict`` of key/value pairs.
 
@@ -162,15 +177,7 @@ class Cache(object):
         """
         return {key: self.get(key, default=default) for key in keys}
 
-    def _get(self, key):
-        value = self._cache[key]
-
-        if self.expired(key):
-            self._delete(key)
-            raise KeyError('{!r} is expired'.format(key))
-
-        return value
-
+    @_lock
     def add(self, key, value, ttl=None):
         """Add cache key/value if it doesn't already exist. Essentially, this
         method ignores keys that exist which leaves the original TTL in tact.
@@ -185,6 +192,7 @@ class Cache(object):
             return
         self.set(key, value, ttl=ttl)
 
+    @_lock
     def add_many(self, items, ttl=None):
         """Add multiple cache keys at once.
 
@@ -194,6 +202,7 @@ class Cache(object):
         for key, value in items.items():
             self.add(key, value, ttl=ttl)
 
+    @_lock
     def set(self, key, value, ttl=None):
         """Set cache key/value and replace any previously set cache key. If the
         cache key previous existed, setting it will move it to the end of the
@@ -210,16 +219,13 @@ class Cache(object):
 
         self.evict()
 
-        with self._lock:
-            self._set(key, value, ttl=ttl)
-
-    def _set(self, key, value, ttl):
-        self._delete(key)
+        self.delete(key)
         self._cache[key] = value
 
         if ttl > 0:
             self._expires[key] = self.timer() + ttl
 
+    @_lock
     def set_many(self, items, ttl=None):
         """Set multiple cache keys at once.
 
@@ -229,6 +235,7 @@ class Cache(object):
         for key, value in items.items():
             self.set(key, value, ttl=ttl)
 
+    @_lock
     def delete(self, key):
         """Delete cache key and return number of entries deleted (``1`` or
         ``0``).
@@ -236,9 +243,18 @@ class Cache(object):
         Returns:
             int: ``1`` if key was deleted, ``0`` if key didn't exist.
         """
-        with self._lock:
-            return self._delete(key)
+        count = 0
 
+        with suppress(KeyError):
+            del self._cache[key]
+            count = 1
+
+        with suppress(KeyError):
+            del self._expires[key]
+
+        return count
+
+    @_lock
     def delete_many(self, keys):
         """Delete multiple cache keys at once.
 
@@ -255,28 +271,13 @@ class Cache(object):
 
         return count
 
-    def _delete(self, key):
-        count = 0
-
-        with suppress(KeyError):
-            del self._cache[key]
-            count = 1
-
-        with suppress(KeyError):
-            del self._expires[key]
-
-        return count
-
+    @_lock
     def delete_expired(self):
         """Delete expired cache keys and return number of entries deleted.
 
         Returns:
             int: Number of entries deleted.
         """
-        with self._lock:
-            return self._delete_expired()
-
-    def _delete_expired(self):
         # Use a static expiration time for each key for better consistency as
         # opposed to a newly computed timestamp on each iteration.
         expires_on = self.timer()
@@ -285,7 +286,7 @@ class Cache(object):
         count = 0
 
         for key in expired_keys:
-            self._delete(key)
+            self.delete(key)
             count += 1
 
         return count
@@ -310,6 +311,7 @@ class Cache(object):
         except KeyError:
             return key not in self
 
+    @_lock
     def expirations(self):
         """Return cache expirations for TTL keys.
 
@@ -318,6 +320,7 @@ class Cache(object):
         """
         return self._expires.copy()
 
+    @_lock
     def evict(self, minimum=1):
         """Perform cache eviction per the cache replacement policy:
 
@@ -331,21 +334,13 @@ class Cache(object):
         Returns:
             int: Number of cache entries evicted.
         """
-        with self._lock:
-            return self._evict(minimum)
-
-    def _evict(self, minimum=1):
         count = 0
-
-        if not self.full():
-            return count
-
         number_to_delete = len(self) - self.maxsize + minimum
 
-        if number_to_delete < 0:
+        if not self.full() or number_to_delete < 0:
             return count
 
-        count += self._delete_expired()
+        count += self.delete_expired()
 
         while count < number_to_delete:
             # Optimize method for getting the first cache entry. We need to
@@ -354,6 +349,6 @@ class Cache(object):
             for key in self._cache:
                 break
 
-            count += self._delete(key)
+            count += self.delete(key)
 
         return count
