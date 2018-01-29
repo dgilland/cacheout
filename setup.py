@@ -36,7 +36,7 @@ setup(
     package_dir={'': 'src'},
     include_package_data=True,
     install_requires=requirements,
-    keywords='cacheout',
+    keywords='cacheout cache caching',
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
@@ -45,6 +45,8 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
+        'Topic :: Utilities',
+        'Topic :: Database',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',
