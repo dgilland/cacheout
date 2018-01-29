@@ -3,6 +3,7 @@ Changelog
 
 
 - Rename ``Cache.setup()`` to ``Cache.configure()``. **breaking change**
+- Add ``CacheManager`` class.
 
 
 v0.1.0 (2018-01-28)

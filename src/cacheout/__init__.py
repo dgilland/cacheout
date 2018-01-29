@@ -12,4 +12,4 @@ from .__pkg__ import (
     __license__
 )
 
-from .cache import Cache
+from .cache import Cache, CacheManager

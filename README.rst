@@ -20,6 +20,7 @@ Features
 ========
 
 - In-memory caching using dictionary backend
+- Cache manager for easily accessing multiple cache objects
 - Maximum cache size enforcement
 - Cache-level default TTL (time-to-live) as well as custom TTLs on a per cache entry basis
 - Reconfigurable cache settings for runtime setup when using module-level cache objects
@@ -40,7 +41,6 @@ Roadmap
 
 - Memoization decorator
 - Layered caching (multi-level caching)
-- Cache handler (multi-cache access layer)
 - Cache event listener support (e.g. on-get, on-set, on-delete)
 - Regular expression support in cache get
 - Set-on-missing callback support in cache get
