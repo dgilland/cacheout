@@ -44,7 +44,7 @@ def test_cache_set(cache):
 def test_cache_set_ttl_default(cache, timer):
     """Test that cache.set() uses a default TTL if initialized with one."""
     default_ttl = 2
-    cache.setup(ttl=default_ttl)
+    cache.configure(ttl=default_ttl)
 
     cache.set('key', 'value')
     assert cache.has('key')
@@ -59,7 +59,7 @@ def test_cache_set_ttl_default(cache, timer):
 def test_cache_set_ttl_override(cache, timer):
     """Test that cache.set() can override the default TTL."""
     default_ttl = 1
-    cache.setup(ttl=default_ttl)
+    cache.configure(ttl=default_ttl)
 
     cache.set('key1', 'value1')
     cache.set('key2', 'value2', ttl=default_ttl + 1)
@@ -188,7 +188,7 @@ def test_cache_delete_expired(cache, timer):
 def test_cache_evict(cache):
     """Test that cache.evict() will remove cache keys to make room."""
     maxsize = 5
-    cache.setup(maxsize=maxsize)
+    cache.configure(maxsize=maxsize)
 
     for key in range(maxsize):
         cache.set(key, key)
@@ -224,7 +224,7 @@ def test_cache_full(cache):
 
 def test_cache_full_unbounded(cache):
     """Test that cache.full() always returns False for an unbounded cache."""
-    cache.setup(maxsize=0)
+    cache.configure(maxsize=0)
     for n in range(1000):
         cache.set(n, n)
         assert not cache.full()

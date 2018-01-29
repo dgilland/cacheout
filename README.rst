@@ -137,11 +137,11 @@ Perform bulk operations with ``cache.set_many()``, ``cache.get_many()``, and ``c
     assert cache.count() == 0
 
 
-Reconfigure the cache object after creation with ``cache.setup()``:
+Reconfigure the cache object after creation with ``cache.configure()``:
 
 .. code-block:: python
 
-    cache.setup(maxsize=1000, ttl=5 * 60)
+    cache.configure(maxsize=1000, ttl=5 * 60)
 
 
 Get keys, values, and items from the cache with ``cache.keys()``, ``cache.values()``, and ``cache.items()``:

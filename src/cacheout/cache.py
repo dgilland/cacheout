@@ -34,10 +34,10 @@ class Cache(object):
     def __init__(self, maxsize=300, ttl=0, timer=time.time):
         self._lock = RLock()
 
-        self.setup(maxsize=maxsize, ttl=ttl, timer=timer)
+        self.configure(maxsize=maxsize, ttl=ttl, timer=timer)
         self.clear()
 
-    def setup(self, maxsize=None, ttl=None, timer=None):
+    def configure(self, maxsize=None, ttl=None, timer=None):
         """Configure cache settings. This method is meant to support runtime
         level configurations for global level cache objects.
         """
