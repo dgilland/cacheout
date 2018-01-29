@@ -217,7 +217,8 @@ class Cache(object):
         if ttl is None:
             ttl = self.ttl
 
-        self.evict()
+        if key not in self:
+            self.evict()
 
         self.delete(key)
         self._cache[key] = value
