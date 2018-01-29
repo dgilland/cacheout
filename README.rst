@@ -21,8 +21,8 @@ Features
 
 - In-memory caching using dictionary backend
 - Maximum cache size enforcement
-- Default TTL as well as per cache entry TTL
-- Reconfigurable cache settings for runtime setup of module-level cache objects
+- Cache-level default TTL (time-to-live) as well as custom TTLs on a per cache entry basis
+- Reconfigurable cache settings for runtime setup when using module-level cache objects
 - Bulk set, get, and delete operations
 - Thread-safe
 
@@ -73,7 +73,7 @@ Let's start with some basic caching by creating a cache object:
     cache = Cache()
 
 
-By default the ``cache`` object will have a maximum size of ``300`` with TTL expiration turned off. These values can be set with:
+By default the ``cache`` object will have a maximum size of ``300`` and TTL expiration turned off. These values can be set with:
 
 .. code-block:: python
 
