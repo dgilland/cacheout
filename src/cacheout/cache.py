@@ -220,8 +220,10 @@ class Cache(object):
         if key not in self:
             self.evict()
 
-        self.delete(key)
+        # Set key and move it to the end of the stack to simulate FIFO since
+        # cache entries are deleted from the front first.
         self._cache[key] = value
+        self._cache.move_to_end(key)
 
         if ttl > 0:
             self._expires[key] = self.timer() + ttl
