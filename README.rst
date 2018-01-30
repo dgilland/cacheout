@@ -173,6 +173,31 @@ Check if key exists with ``cache.has()`` and ``key in cache``:
     assert 'a' in cache
 
 
+Manage multiple caches using ``CacheManager``:
+
+.. code-block:: python
+
+    from cacheout import CacheManager
+
+    cacheman = CacheManager({'a': {'maxsize': 100},
+                             'b': {'maxsize': 200, 'ttl': 900},
+                             'c': {})
+
+    cacheman['a'].set('key1', 'value1')
+    value = cacheman['a'].get('key')
+
+    cacheman['b'].set('key2', 'value2')
+    assert cacheman['b'].maxsize == 200
+    assert cacheman['b'].ttl == 900
+
+    cacheman['c'].set('key3', 'value3')
+
+    cacheman.clear_all()
+    for name, cache in cacheman:
+        assert name in cacheman
+        assert len(cache) == 0
+
+
 For more details, see the full documentation at https://cacheout.readthedocs.io.
 
 
