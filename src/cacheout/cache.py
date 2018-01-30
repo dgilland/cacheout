@@ -457,6 +457,10 @@ class CacheManager(object):
         """Register a named cache instance."""
         self._caches[name] = cache
 
+    def __repr__(self):
+        return '{}({})'.format(self.__class__.__name__,
+                               self.cache_names())
+
     def __getitem__(self, name):
         try:
             return self._caches[name]
