@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+v0.3.0 (2018-01-31)
+-------------------
+
 - Add ``LRUCache``.
 - Add ``CacheManager.__repr__()``.
 - Make threading lock usage in ``Cache`` more fine-grained and eliminate redundant locking.
