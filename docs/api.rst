@@ -23,3 +23,12 @@ Cache Manager
 
 .. automodule:: cacheout.manager
     :members:
+
+
+LRU Cache
+---------
+
+.. automodule:: cacheout.lru
+    :members:
+    :inherited-members:
+    :show-inheritance:

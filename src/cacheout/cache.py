@@ -144,13 +144,18 @@ class Cache(object):
             mixed: The cached value.
         """
         try:
-            value = self._cache[key]
-
-            if self.expired(key):
-                self.delete(key)
-                raise KeyError()
+            value = self._get(key, default=default)
         except KeyError:
             value = default
+
+        return value
+
+    def _get(self, key, default=None):
+        value = self._cache[key]
+
+        if self.expired(key):
+            self.delete(key)
+            raise KeyError('Key {!r} is expired')
 
         return value
 

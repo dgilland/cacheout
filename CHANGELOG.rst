@@ -2,6 +2,7 @@ Changelog
 =========
 
 
+- Add ``LRUCache``.
 - Add ``CacheManager.__repr__()``.
 - Make threading lock usage in ``Cache`` more fine-grained and eliminate redundant locking.
 - Fix missing thread-safety in ``Cache.__len__()`` and ``Cache.__contains__()``.
