@@ -1,3 +1,6 @@
+"""The cache module provides the :class:`Cache` class which is used as the
+basis for all other cache types.
+"""
 
 from collections import OrderedDict
 from contextlib import suppress
@@ -14,7 +17,16 @@ class Cache(object):
     - Per cache entry TTL
     - TTL first/non-TTL FIFO cache eviction policy
 
-    Attrs:
+    Cache entries are stored in an ``OrderedDict`` so that key ordering based
+    on the cache type can be maintained without the need for additional
+    list(s). Essentially, the key order of the ``OrderedDict`` is treated as an
+    "eviction queue" with the convention that entries at the beginning of the
+    queue are "newer" while the entries at the end are "older" (the exact
+    meaning of "newer" and "older" will vary between different cache types).
+    When cache entries need to be evicted, expired entries are removed first
+    followed by the "older" entries (i.e. the ones at the end of the queue).
+
+    Attributes:
         maxsize (int, optional): Maximum size of cache dictionary. Defaults to
             ``300``.
         ttl (int, optional): Default TTL for all cache entries. Defaults to

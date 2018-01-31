@@ -1,3 +1,5 @@
+"""The manager module provides the :class:`CacheManager` class.
+"""
 
 from threading import RLock
 
