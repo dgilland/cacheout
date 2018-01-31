@@ -21,11 +21,14 @@ Features
 
 - In-memory caching using dictionary backend
 - Cache manager for easily accessing multiple cache objects
-- Maximum cache size enforcement
-- Cache-level default TTL (time-to-live) as well as custom TTLs on a per cache entry basis
 - Reconfigurable cache settings for runtime setup when using module-level cache objects
+- Maximum cache size enforcement
+- Default cache TTL (time-to-live) as well as custom TTLs per cache entry
 - Bulk set, get, and delete operations
-- Thread-safe
+- Thread safe
+- Multiple cache types:
+  - LRU
+  - more coming soon!
 
 
 Roadmap
@@ -33,7 +36,6 @@ Roadmap
 
 - Additional cache replacement policies:
 
-  - LRU (Least Recently Used)
   - MRU (Most Recently Used)
   - LFU (Least Frequently Used)
   - LIFO (Last In, First Out)
