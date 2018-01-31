@@ -108,7 +108,7 @@ class CacheManager(object):
 
     def __repr__(self):
         return '{}({})'.format(self.__class__.__name__,
-                               self.cache_names())
+                               sorted(self.cache_names()))
 
     def __getitem__(self, name):
         try:

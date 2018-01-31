@@ -1,6 +1,4 @@
 
-from collections import OrderedDict
-
 import pytest
 
 from cacheout import Cache, CacheManager
@@ -168,7 +166,7 @@ def test_cache_manager_to_dict():
 
 
 def test_cache_manager_repr():
-    settings = OrderedDict({'a': {}, 'b': {}, 'c': {}})
+    settings = {'a': {}, 'b': {}, 'c': {}}
     cacheman = CacheManager()
 
     assert repr(cacheman) == 'CacheManager([])'
