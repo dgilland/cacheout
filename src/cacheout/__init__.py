@@ -1,6 +1,4 @@
-"""The cacheout package.
-
-Cache library
+"""Cacheout is a caching library for Python.
 """
 
 from .__pkg__ import (
@@ -12,4 +10,5 @@ from .__pkg__ import (
     __license__
 )
 
-from .cache import Cache, CacheManager
+from .cache import Cache
+from .manager import CacheManager
