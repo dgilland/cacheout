@@ -16,3 +16,10 @@ Cache
 
 .. automodule:: cacheout.cache
     :members:
+
+
+Cache Manager
+-------------
+
+.. automodule:: cacheout.manager
+    :members:
