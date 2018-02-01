@@ -233,11 +233,14 @@ class Cache(object):
         # Set key and move it to the end of the stack to simulate FIFO since
         # cache entries are deleted from the front first.
         with self._lock:
-            self._cache[key] = value
-            self._cache.move_to_end(key)
+            self._set(key, value, ttl=ttl)
 
-            if ttl > 0:
-                self._expires[key] = self.timer() + ttl
+    def _set(self, key, value, ttl=None):
+        self._cache[key] = value
+        self._cache.move_to_end(key)
+
+        if ttl and ttl > 0:
+            self._expires[key] = self.timer() + ttl
 
     def set_many(self, items, ttl=None):
         """Set multiple cache keys at once.
