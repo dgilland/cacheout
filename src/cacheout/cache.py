@@ -129,7 +129,7 @@ class Cache(object):
             self.get(key)
         return key in self
 
-    def count(self):
+    def size(self):
         """Return number of cache entries."""
         return len(self)
 

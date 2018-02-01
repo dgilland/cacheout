@@ -204,13 +204,13 @@ def test_cache_evict(cache):
         assert not cache.has(key)
 
 
-def test_cache_count(cache):
-    """Test that cache.count() returns the number of cache keys."""
-    assert cache.count() == len(cache) == 0
+def test_cache_size(cache):
+    """Test that cache.size() returns the number of cache keys."""
+    assert cache.size() == len(cache) == 0
 
     for n in range(1, 50):
         cache.set(n, n)
-        assert cache.count() == len(cache) == n
+        assert cache.size() == len(cache) == n
 
 
 def test_cache_full(cache):
