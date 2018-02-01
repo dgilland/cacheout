@@ -89,13 +89,13 @@ def test_cache_add(cache):
     cache.add(key, value, ttl)
     assert cache.get(key) == value
 
-    assert cache.expirations()[key] == ttl
+    assert cache.expire_times()[key] == ttl
 
     cache.add(key, value, ttl + 1)
-    assert cache.expirations()[key] == ttl
+    assert cache.expire_times()[key] == ttl
 
     cache.set(key, value, ttl + 1)
-    assert cache.expirations()[key] == ttl + 1
+    assert cache.expire_times()[key] == ttl + 1
 
 
 def test_cache_add_many(cache):

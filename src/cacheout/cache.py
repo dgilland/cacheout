@@ -116,7 +116,7 @@ class Cache(object):
         """Clear all cache entries."""
         with self._lock:
             self._cache = OrderedDict()
-            self._expires = {}
+            self._expire_times = {}
 
     def has(self, key):
         """Return whether cache key exists and hasn't expired.
@@ -240,7 +240,7 @@ class Cache(object):
         self._cache.move_to_end(key)
 
         if ttl and ttl > 0:
-            self._expires[key] = self.timer() + ttl
+            self._expire_times[key] = self.timer() + ttl
 
     def set_many(self, items, ttl=None):
         """Set multiple cache keys at once.
@@ -266,7 +266,7 @@ class Cache(object):
                 count = 1
 
             with suppress(KeyError):
-                del self._expires[key]
+                del self._expire_times[key]
 
         return count
 
@@ -295,7 +295,7 @@ class Cache(object):
         # Use a static expiration time for each key for better consistency as
         # opposed to a newly computed timestamp on each iteration.
         expires_on = self.timer()
-        expired_keys = (key for key in self.expirations()
+        expired_keys = (key for key in self.expire_times()
                         if self.expired(key, expires_on=expires_on))
         count = 0
 
@@ -321,18 +321,18 @@ class Cache(object):
             expires_on = self.timer()
 
         try:
-            return self._expires[key] <= expires_on
+            return self._expire_times[key] <= expires_on
         except KeyError:
             return key not in self
 
-    def expirations(self):
+    def expire_times(self):
         """Return cache expirations for TTL keys.
 
         Returns:
             dict
         """
         with self._lock:
-            return self._expires.copy()
+            return self._expire_times.copy()
 
     def evict(self):
         """Perform cache eviction per the cache replacement policy:
