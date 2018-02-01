@@ -18,7 +18,8 @@ class CacheManager(object):
     Example:
 
         >>> # Configure bulk caches during initialization
-        >>> caches = CacheManager({'A': {'maxsize': 100}, 'B': {'ttl': 900}})
+        >>> caches = CacheManager({'A': {'maxsize': 100},
+        ...                        'B': {'ttl': 90}})
         >>> assert 'A' in caches
         >>> assert 'B' in caches
 
