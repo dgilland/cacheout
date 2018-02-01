@@ -148,7 +148,7 @@ class Cache(object):
         has expired.
 
         Args:
-            key (str): Cache key.
+            key (mixed): Cache key.
             default (mixed, optional): Value to return if `key` doesn't exist.
                 Defaults to ``None``.
 
@@ -188,8 +188,11 @@ class Cache(object):
         """Add cache key/value if it doesn't already exist. Essentially, this
         method ignores keys that exist which leaves the original TTL in tact.
 
+        Note:
+            Cache key must be hashable.
+
         Args:
-            key (str): Cache key to add.
+            key (mixed): Cache key to add.
             value (mixed): Cache value.
             ttl (int, optional): TTL value. Defaults to ``None`` which uses
                 :attr:`ttl`.
@@ -212,8 +215,11 @@ class Cache(object):
         cache key previous existed, setting it will move it to the end of the
         cache stack which means it would be evicted last.
 
+        Note:
+            Cache key must be hashable.
+
         Args:
-            key (str): Cache key to set.
+            key (mixed): Cache key to set.
             value (mixed): Cache value.
             ttl (int, optional): TTL value. Defaults to ``None`` which uses
                 :attr:`ttl`.
@@ -300,7 +306,7 @@ class Cache(object):
         """Return whether cache key is expired or not.
 
         Args:
-            key (str): Cache key.
+            key (mixed): Cache key.
             expires_on (float, optional): Timestamp of when the key is
                 considered expired. Defaults to ``None`` which uses the current
                 value returned from :meth:`timer`.
