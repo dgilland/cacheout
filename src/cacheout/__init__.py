@@ -13,4 +13,5 @@ from .__pkg__ import (
 from .cache import Cache
 from .lru import LRUCache
 from .mru import MRUCache
+from .rr import RRCache
 from .manager import CacheManager
