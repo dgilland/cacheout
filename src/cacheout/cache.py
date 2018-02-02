@@ -383,15 +383,25 @@ class Cache(object):
 
         with self._lock:
             while self.full():
-                try:
-                    count += self._evict()
-                except StopIteration:  # pragma: no cover
-                    # Shouldn't get here since this indicates we somehow have
-                    # no cache keys to evict.
-                    break
+                self.popitem()
+                count += 1
 
         return count
 
-    def _evict(self):
+    def popitem(self):
+        """Delete and return next cache item based on cache replacement policy
+        while ignoring expiration times (i.e. item popped is based soley on
+        the cache key ordering).
+
+        Returns:
+            tuple: Two-element tuple of deleted cache ``(key, value)``.
+        """
+        if len(self) == 0:
+            raise KeyError('popitem(): cache is empty')
+
         key = next(self)
-        return self._delete(key)
+        value = self.get(key)
+
+        self.delete(key)
+
+        return (key, value)
