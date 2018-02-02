@@ -1,5 +1,6 @@
 """The lru module provides the :class:`LRUCache` class.
 """
+
 from .cache import Cache
 
 
@@ -12,6 +13,5 @@ class LRUCache(Cache):
     """
     def _get(self, key, default=None):
         value = super()._get(key, default=default)
-        with self._lock:
-            self._cache.move_to_end(key)
+        self._cache.move_to_end(key)
         return value
