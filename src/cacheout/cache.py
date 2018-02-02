@@ -86,6 +86,9 @@ class Cache(object):
     def __iter__(self):
         return self.keys()
 
+    def __next__(self):
+        return next(iter(self._cache))
+
     def copy(self):
         """Return a copy of the cache.
 
@@ -381,16 +384,15 @@ class Cache(object):
 
         with self._lock:
             while self.full():
-                count += self._evict()
+                try:
+                    count += self._evict()
+                except StopIteration:  # pragma: no cover
+                    # Shouldn't get here since this indicates we somehow have
+                    # no cache keys to evict.
+                    break
 
         return count
 
     def _evict(self):
-        try:
-            key = next(iter(self._cache))
-        except StopIteration:  # pragma: no cover
-            count = 0
-        else:
-            count = self.delete(key)
-
-        return count
+        key = next(self)
+        return self._delete(key)
