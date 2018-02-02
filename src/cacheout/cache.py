@@ -84,26 +84,49 @@ class Cache(object):
             return key in self._cache
 
     def __iter__(self):
-        yield from self.copy()
+        return self.keys()
 
     def copy(self):
-        """Return a copy of the cache."""
+        """Return a copy of the cache.
+
+        Returns:
+            OrderedDict
+        """
         with self._lock:
             return self._cache.copy()
 
     def keys(self):
-        """Return a dict view object of cache keys."""
-        return self.copy().keys()
+        """Yield each cache key.
+
+        Note:
+            Cache keys are copied from the underlying cache storage and yielded
+            from that copy.
+
+        Yields:
+            mixed: Cache keys
+        """
+        with self._lock:
+            keys = tuple(self._cache.keys())
+        yield from keys
 
     def values(self):
-        """Return a dict view object of cache values.
+        """Yield each cache value.
+
+        Note:
+            Cache keys are copied from the underlying cache storage and yielded
+            from that copy.
 
         Warning:
             Returned data is copied from the cache object, but any
             modifications to mutable values will also modify the cache object's
             data.
+
+        Yields:
+            mixed: Cache values
         """
-        return self.copy().values()
+        with self._lock:
+            values = tuple(self._cache.values())
+        yield from values
 
     def items(self):
         """Return a dict view object of cache items.

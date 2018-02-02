@@ -38,7 +38,7 @@ def assert_keys_are_evicted_in_order(cache, keys):
 
 def test_lru_set_eviction(cache):
     """Test that LRUCache evicts least recently set entries first."""
-    keys = random.sample(cache.keys(), len(cache))
+    keys = random.sample(list(cache.keys()), len(cache))
 
     for key in keys:
         cache.set(key, key)
@@ -48,7 +48,7 @@ def test_lru_set_eviction(cache):
 
 def test_lru_get_eviction(cache):
     """Test that LRUCache evicts least recently accessed entries first."""
-    keys = random.sample(cache.keys(), len(cache))
+    keys = random.sample(list(cache.keys()), len(cache))
 
     for key in keys:
         cache.get(key)
