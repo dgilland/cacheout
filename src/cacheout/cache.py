@@ -35,10 +35,13 @@ class Cache(object):
             expiration. Defaults to ``time.time``.
     """
     def __init__(self, maxsize=300, ttl=0, timer=time.time):
-        self._lock = RLock()
-
+        self.setup()
         self.configure(maxsize=maxsize, ttl=ttl, timer=timer)
-        self.clear()
+
+    def setup(self):
+        self._cache = OrderedDict()
+        self._expire_times = {}
+        self._lock = RLock()
 
     def configure(self, maxsize=None, ttl=None, timer=None):
         """Configure cache settings. This method is meant to support runtime
@@ -115,8 +118,8 @@ class Cache(object):
     def clear(self):
         """Clear all cache entries."""
         with self._lock:
-            self._cache = OrderedDict()
-            self._expire_times = {}
+            self._cache.clear()
+            self._expire_times.clear()
 
     def has(self, key):
         """Return whether cache key exists and hasn't expired.
