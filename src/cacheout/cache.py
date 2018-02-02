@@ -284,15 +284,18 @@ class Cache(object):
         Returns:
             int: ``1`` if key was deleted, ``0`` if key didn't exist.
         """
+        with self._lock:
+            return self._delete(key)
+
+    def _delete(self, key):
         count = 0
 
-        with self._lock:
-            with suppress(KeyError):
-                del self._cache[key]
-                count = 1
+        with suppress(KeyError):
+            del self._cache[key]
+            count = 1
 
-            with suppress(KeyError):
-                del self._expire_times[key]
+        with suppress(KeyError):
+            del self._expire_times[key]
 
         return count
 
