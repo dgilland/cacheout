@@ -26,20 +26,20 @@ Features
 - Default cache TTL (time-to-live) as well as custom TTLs per cache entry
 - Bulk set, get, and delete operations
 - Thread safe
-- Multiple cache types:
-  - LRU
+- Multiple cache implementations:
+  - LRU (Least Recently Used)
+  - MRU (Most Recently Used)
+  - RR (Random Replacement)
   - more coming soon!
 
 
 Roadmap
 =======
 
-- Additional cache replacement policies:
+- Additional cache implementations:
 
-  - MRU (Most Recently Used)
   - LFU (Least Frequently Used)
   - LIFO (Last In, First Out)
-  - RR (Random Replacement)
 
 - Memoization decorator
 - Layered caching (multi-level caching)

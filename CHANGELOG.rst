@@ -2,6 +2,14 @@ Changelog
 =========
 
 
+- Add ``MRUCache``
+- Add ``RRCache``
+- Add ``Cache.popitem()``.
+- Rename ``Cache.expirations()`` to ``Cache.expire_times()``. (**breaking change**)
+- Rename ``Cache.count()`` to ``Cache.size()``. (**breaking change**)
+- Remove ``minimum`` arguement from ``Cache.evict()``. (**breaking change**)
+
+
 v0.3.0 (2018-01-31)
 -------------------
 
@@ -14,7 +22,7 @@ v0.3.0 (2018-01-31)
 v0.2.0 (2018-01-30)
 -------------------
 
-- Rename ``Cache.setup()`` to ``Cache.configure()``. **breaking change**
+- Rename ``Cache.setup()`` to ``Cache.configure()``. (**breaking change**)
 - Add ``CacheManager`` class.
 
 
