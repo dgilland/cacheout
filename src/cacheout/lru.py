@@ -1,4 +1,4 @@
-"""The lru module provides the :class:`LRUCache` class.
+"""The lru module provides the :class:`LRUCache` (Least Recently Used) class.
 """
 
 from .cache import Cache
