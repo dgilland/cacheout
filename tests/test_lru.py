@@ -1,5 +1,6 @@
 
 from random import SystemRandom
+
 import pytest
 
 from cacheout import LRUCache
@@ -7,13 +8,6 @@ from cacheout import LRUCache
 
 parametrize = pytest.mark.parametrize
 random = SystemRandom()
-
-
-def next_keys(cache):
-    for n in range(cache.maxsize, cache.maxsize * 2):
-        cache.set(n, n)
-        assert cache.full()
-        yield n
 
 
 @pytest.fixture
@@ -25,8 +19,9 @@ def cache():
     return _cache
 
 
-def assert_keys_are_evicted_in_order(cache, keys):
+def assert_keys_evicted_in_order(cache, keys):
     """Assert that cache keys are evicted in the same order as `keys`."""
+    keys = keys.copy()
     for n in range(cache.maxsize, cache.maxsize * 2):
         cache.set(n, n)
         assert cache.full()
@@ -43,7 +38,7 @@ def test_lru_set_eviction(cache):
     for key in keys:
         cache.set(key, key)
 
-    assert_keys_are_evicted_in_order(cache, keys)
+    assert_keys_evicted_in_order(cache, keys)
 
 
 def test_lru_get_eviction(cache):
@@ -53,7 +48,7 @@ def test_lru_get_eviction(cache):
     for key in keys:
         cache.get(key)
 
-    assert_keys_are_evicted_in_order(cache, keys)
+    assert_keys_evicted_in_order(cache, keys)
 
 
 def test_lru_get_set_eviction(cache):
@@ -74,7 +69,7 @@ def test_lru_get_set_eviction(cache):
 
     keys = get_keys + set_keys
 
-    assert_keys_are_evicted_in_order(cache, keys)
+    assert_keys_evicted_in_order(cache, keys)
 
 
 def test_lru_get(cache):
