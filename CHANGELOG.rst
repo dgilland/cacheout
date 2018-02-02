@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+v0.4.0 (2018-02-02)
+-------------------
+
 - Add ``MRUCache``
 - Add ``RRCache``
 - Add ``Cache.popitem()``.
