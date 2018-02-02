@@ -262,8 +262,8 @@ class Cache(object):
             self._set(key, value, ttl=ttl)
 
     def _set(self, key, value, ttl=None):
+        self._delete(key)
         self._cache[key] = value
-        self._cache.move_to_end(key)
 
         if ttl and ttl > 0:
             self._expire_times[key] = self.timer() + ttl
