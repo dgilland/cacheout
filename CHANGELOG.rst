@@ -2,6 +2,10 @@ Changelog
 =========
 
 
+- Add ``LFUCache``
+- Delete expired items before popping an item in ``Cache.popitem()``.
+
+
 v0.4.0 (2018-02-02)
 -------------------
 
