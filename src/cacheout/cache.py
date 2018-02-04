@@ -383,25 +383,35 @@ class Cache(object):
 
         with self._lock:
             while self.full():
-                self.popitem()
+                try:
+                    self._popitem()
+                except KeyError:  # pragma: no cover
+                    break
                 count += 1
 
         return count
 
     def popitem(self):
-        """Delete and return next cache item based on cache replacement policy
-        while ignoring expiration times (i.e. item popped is based soley on
-        the cache key ordering).
+        """Delete and return next cache item, ``(key, value)``, based on cache
+        replacement policy while ignoring expiration times (i.e. the selection
+        of the item to pop is based soley on the cache key ordering).
 
         Returns:
             tuple: Two-element tuple of deleted cache ``(key, value)``.
         """
-        if len(self) == 0:
+        self.delete_expired()
+
+        with self._lock:
+            return self._popitem()
+
+    def _popitem(self):
+        try:
+            key = next(self)
+        except StopIteration:
             raise KeyError('popitem(): cache is empty')
 
-        key = next(self)
-        value = self.get(key)
+        value = self._cache[key]
 
-        self.delete(key)
+        self._delete(key)
 
         return (key, value)

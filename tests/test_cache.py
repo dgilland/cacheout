@@ -302,6 +302,23 @@ def test_cache_items(cache):
     assert set(cache.items()) == set(items.items())
 
 
+def test_cache_popitem(cache):
+    """Test that cache.popitem() removes the oldest entries first."""
+    keys = list(range(cache.maxsize))
+
+    for key in keys:
+        cache.set(key, str(key))
+
+    for i, key in enumerate(keys):
+        k, v = cache.popitem()
+        assert k == key
+        assert v == str(key)
+        assert len(cache) == (cache.maxsize - (i + 1))
+
+    with pytest.raises(KeyError):
+        cache.popitem()
+
+
 def test_cache_iter(cache):
     """Test that iterating over cache yields each cache key."""
     items = {'a': 1, 'b': 2, 'c': 3}
