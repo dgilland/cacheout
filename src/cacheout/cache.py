@@ -144,8 +144,11 @@ class Cache(object):
     def clear(self):
         """Clear all cache entries."""
         with self._lock:
-            self._cache.clear()
-            self._expire_times.clear()
+            self._clear()
+
+    def _clear(self):
+        self._cache.clear()
+        self._expire_times.clear()
 
     def has(self, key):
         """Return whether cache key exists and hasn't expired.
