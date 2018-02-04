@@ -9,7 +9,12 @@ Guide
     :maxdepth: 3
 
     installation
-    api
+    cache
+    lru
+    mru
+    lfu
+    rr
+    manager
 
 
 Project Info
