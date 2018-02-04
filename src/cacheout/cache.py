@@ -323,16 +323,19 @@ class Cache(object):
         Returns:
             int: Number of entries deleted.
         """
+        count = 0
+
+        if not self._expire_times:
+            return count
+
         # Use a static expiration time for each key for better consistency as
         # opposed to a newly computed timestamp on each iteration.
         expires_on = self.timer()
         expired_keys = (key for key in self.expire_times()
                         if self.expired(key, expires_on=expires_on))
-        count = 0
 
         for key in expired_keys:
-            self.delete(key)
-            count += 1
+            count += self.delete(key)
 
         return count
 
