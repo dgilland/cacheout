@@ -29,6 +29,7 @@ Features
 - Multiple cache implementations:
   - LRU (Least Recently Used)
   - MRU (Most Recently Used)
+  - LFU (Least Frequently Used)
   - RR (Random Replacement)
   - more coming soon!
 
@@ -38,7 +39,6 @@ Roadmap
 
 - Additional cache implementations:
 
-  - LFU (Least Frequently Used)
   - LIFO (Last In, First Out)
 
 - Memoization decorator

@@ -1,5 +1,5 @@
 """The cache module provides the :class:`Cache` class which is used as the
-basis for all other cache types.
+base for all other cache types.
 """
 
 from collections import OrderedDict
