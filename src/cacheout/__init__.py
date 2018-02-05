@@ -12,6 +12,7 @@ from .__pkg__ import (
 
 from .cache import Cache
 from .fifo import FIFOCache
+from .lifo import LIFOCache
 from .lfu import LFUCache
 from .lru import LRUCache
 from .mru import MRUCache

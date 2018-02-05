@@ -2,6 +2,7 @@ Changelog
 =========
 
 
+- Add ``LIFOCache``
 - Add ``FIFOCache`` as an alias of ``Cache``.
 
 

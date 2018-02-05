@@ -29,19 +29,15 @@ Features
 - Multiple cache implementations:
 
   - FIFO (First In, First Out)
+  - LIFO (Last In, First Out)
   - LRU (Least Recently Used)
   - MRU (Most Recently Used)
   - LFU (Least Frequently Used)
   - RR (Random Replacement)
-  - more coming soon!
 
 
 Roadmap
 =======
-
-- Additional cache implementations:
-
-  - LIFO (Last In, First Out)
 
 - Memoization decorator
 - Layered caching (multi-level caching)

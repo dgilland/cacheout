@@ -11,6 +11,7 @@ Guide
     installation
     cache
     fifo
+    lifo
     lru
     mru
     lfu
