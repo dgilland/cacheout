@@ -27,6 +27,7 @@ Features
 - Bulk set, get, and delete operations
 - Thread safe
 - Multiple cache implementations:
+
   - LRU (Least Recently Used)
   - MRU (Most Recently Used)
   - LFU (Least Frequently Used)
