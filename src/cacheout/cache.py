@@ -10,7 +10,7 @@ import time
 
 
 class Cache(object):
-    """An in-memory cache object that supports:
+    """An in-memory, FIFO cache object that supports:
 
     - Maximum number of cache entries
     - Global TTL default

@@ -28,6 +28,7 @@ Features
 - Thread safe
 - Multiple cache implementations:
 
+  - FIFO (First In, First Out)
   - LRU (Least Recently Used)
   - MRU (Most Recently Used)
   - LFU (Least Frequently Used)
@@ -76,7 +77,7 @@ Let's start with some basic caching by creating a cache object:
     cache = Cache()
 
 
-By default the ``cache`` object will have a maximum size of ``300`` and TTL expiration turned off. These values can be set with:
+By default the ``cache`` object will have a maximum size of ``300`` and default TTL expiration turned off. These values can be set with:
 
 .. code-block:: python
 
@@ -97,7 +98,7 @@ Get the value of a cache key with ``cache.get()``:
     assert cache.get(1) == 'foobar'
 
 
-Set the TTL (time-to-live) expiration when caching:
+Set the TTL (time-to-live) expiration per entry:
 
 .. code-block:: python
 

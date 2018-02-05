@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+- Add ``FIFOCache`` as an alias of ``Cache``.
+
+
 v0.5.0 (2018-02-04)
 -------------------
 

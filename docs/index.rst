@@ -10,6 +10,7 @@ Guide
 
     installation
     cache
+    fifo
     lru
     mru
     lfu
