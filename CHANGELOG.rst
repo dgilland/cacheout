@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+v0.6.0 (2018-02-05)
+-------------------
+
 - Add ``LIFOCache``
 - Add ``FIFOCache`` as an alias of ``Cache``.
 
