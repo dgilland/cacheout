@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+v0.7.0 (2018-02-22)
+-------------------
+
 - Changed default cache ``maxsize`` from ``300`` to ``256``. (**breaking change**)
 - Add ``Cache.memoize()`` decorator.
 - Add standalone memoization decorators:
