@@ -16,6 +16,7 @@ Guide
     mru
     lfu
     rr
+    memoization
     manager
 
 

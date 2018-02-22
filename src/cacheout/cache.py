@@ -5,6 +5,9 @@ base for all other cache types.
 from collections import OrderedDict
 from contextlib import suppress
 from decimal import Decimal
+from functools import wraps
+import hashlib
+import inspect
 from threading import RLock
 import time
 
@@ -421,3 +424,95 @@ class Cache(object):
         self._delete(key)
 
         return (key, value)
+
+    def memoize(self, *, ttl=None, typed=False):
+        """Decorator that wraps a function with a memoizing callable.
+
+        Each return value from the function will be cached using the function
+        arguments as the cache key. The cache object can be accessed at
+        ``<function>.cache``. The uncached version (i.e. the original function)
+        can be accessed at ``<function>.uncached``. Each return value from the
+        function will be cached using the function arguments as the cache key.
+
+        Keyword Args:
+            ttl (int, optional): TTL value. Defaults to ``None`` which uses
+                :attr:`ttl`.
+            typed (bool, optional): Whether to cache arguments of a different
+                type separately. For example, ``<function>(1)`` and
+                ``<function>(1.0)`` would be treated differently. Defaults to
+                ``False``.
+        """
+        marker = (object(),)
+
+        def decorator(func):
+            prefix = '{}.{}:'.format(func.__module__, func.__name__)
+            argspec = inspect.getfullargspec(func)
+
+            @wraps(func)
+            def decorated(*args, **kargs):
+                key = _make_memoize_key(func,
+                                        args,
+                                        kargs,
+                                        marker,
+                                        typed,
+                                        argspec,
+                                        prefix)
+                value = self.get(key, default=marker)
+
+                if value is marker:
+                    value = func(*args, **kargs)
+                    self.set(key, value, ttl=ttl)
+
+                return value
+
+            decorated.cache = self
+            decorated.uncached = func
+
+            return decorated
+        return decorator
+
+
+def _make_memoize_key(func, args, kargs, marker, typed, argspec, prefix):
+    kargs = kargs.copy()
+    key_args = (func,)
+
+    # Normalize args by moving positional arguments passed in as keyword
+    # arguments from kargs into args. This is so functions like foo(a, b, c)
+    # called with foo(1, b=2, c=3) and foo(1, 2, 3) and foo(1, 2, c=3) will all
+    # have the same cache key.
+    if kargs:
+        for i, arg in enumerate(argspec.args):
+            if arg in kargs:
+                args = args[:i] + (kargs.pop(arg),) + args[i:]
+
+    if args:
+        key_args += args
+
+    if kargs:
+        # Separate args and kargs with marker to avoid ambiguous cases where
+        # args provided might look like some other args+kargs combo.
+        key_args += marker
+        key_args += tuple(sorted(kargs.items()))
+
+    if typed and args:
+        key_args += tuple(type(arg) for arg in args)
+
+    if typed and kargs:
+        key_args += tuple(type(val) for _, val in sorted(kargs.items()))
+
+    # Hash everything in key_args and concatenate into a single byte string.
+    raw_key = b''.join(map(lambda v: str(v).encode(),
+                           (_hash_value(arg) for arg in key_args)))
+
+    # Combine prefix with md5 hash of raw key so that keys are normalized in
+    # length.
+    return prefix + hashlib.md5(raw_key).hexdigest()
+
+
+def _hash_value(value):
+    # Prefer to hash value based on Python's hash() function but fallback to
+    # repr() if it's unhashable.
+    try:
+        return hash(value)
+    except TypeError:
+        return repr(value)

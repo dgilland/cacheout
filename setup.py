@@ -36,7 +36,8 @@ setup(
     package_dir={'': 'src'},
     include_package_data=True,
     install_requires=requirements,
-    keywords='cacheout cache caching',
+    keywords=('cacheout cache caching memoize memoization fifo lifo lfu lru '
+              'mru'),
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',

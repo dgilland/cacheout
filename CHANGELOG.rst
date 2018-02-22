@@ -3,6 +3,16 @@ Changelog
 
 
 - Changed default cache ``maxsize`` from ``300`` to ``256``. (**breaking change**)
+- Add ``Cache.memoize()`` decorator.
+- Add standalone memoization decorators:
+
+  - ``memoize``
+  - ``fifo_memoize``
+  - ``lfu_memoize``
+  - ``lifo_memoize``
+  - ``lru_memoize``
+  - ``mru_memoize``
+  - ``rr_memoize``
 
 
 v0.6.0 (2018-02-05)

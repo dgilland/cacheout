@@ -204,6 +204,135 @@ def test_cache_evict(cache):
         assert not cache.has(key)
 
 
+def test_cache_memoize(cache):
+    """Test that cache.memoize() caches the return value of a function using a
+    key based on function arguments used.
+    """
+    marker = 1
+
+    @cache.memoize()
+    def func(a, b, c, d):
+        return ((a, b, c, d), marker)
+
+    args, markx = func(1, 2, 3, 4)
+    assert args == (1, 2, 3, 4)
+    assert markx == marker
+
+    marker += 1
+    args, marky = func(1, 2, 3, 4)
+    assert args == (1, 2, 3, 4)
+    assert marky != marker
+    assert marky == markx
+
+    args, markz = func(5, 6, 7, 8)
+    assert args == (5, 6, 7, 8)
+    assert markz == marker
+
+
+def test_cache_memoize_typed(cache):
+    """Test that cache.memoize() can factor in argument types as part of the
+    cache key.
+    """
+    @cache.memoize()
+    def untyped(a):
+        return a
+
+    @cache.memoize(typed=True)
+    def typed(a):
+        return a
+
+    assert untyped(1) is untyped(1.0)
+    assert typed(1) is not typed(1.0)
+
+    assert len(cache) == 3
+
+    untyped_keys = [key for key in cache.keys()
+                    if key.startswith('{}.{}'.format(untyped.__module__,
+                                                     untyped.__name__))]
+
+    typed_keys = [key for key in cache.keys()
+                  if key.startswith('{}.{}'.format(typed.__module__,
+                                                   typed.__name__))]
+
+    assert len(untyped_keys) == 1
+    assert len(typed_keys) == 2
+
+
+def test_cache_memoize_arg_normalization(cache):
+    """Test taht cache.memoize() normalizes argument ordering for positional
+    and keyword arguments.
+    """
+    @cache.memoize(typed=True)
+    def func(a, b, c, d, **kargs):
+        return (a, b, c, d)
+
+    for args, kargs in (((1, 2, 3, 4), {'e': 5}),
+                        ((1, 2, 3), {'d': 4, 'e': 5}),
+                        ((1, 2), {'c': 3, 'd': 4, 'e': 5}),
+                        ((1,), {'b': 2, 'c': 3, 'd': 4, 'e': 5}),
+                        ((), {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5}),
+                        ((), {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5})):
+        func(*args, **kargs)
+        assert len(cache) == 1
+
+
+def test_cache_memoize_ttl(cache, timer):
+    """Test that cache.memoize() can set a TTL."""
+    ttl1 = 5
+    ttl2 = ttl1 + 1
+
+    @cache.memoize(ttl=ttl1)
+    def func1(a):
+        return a
+
+    @cache.memoize(ttl=ttl2)
+    def func2(a):
+        return a
+
+    func1(1)
+    func2(1)
+
+    assert len(cache) == 2
+    key1, key2 = tuple(cache.keys())
+
+    timer.time = ttl1 - 1
+    assert cache.has(key1)
+    assert cache.has(key2)
+
+    timer.time = ttl1
+    assert not cache.has(key1)
+    assert cache.has(key2)
+
+    timer.time = ttl2
+    assert not cache.has(key2)
+
+
+def test_cache_memoize_func_attrs(cache):
+    """Test that cache.memoize() adds attributes to decorated function."""
+    marker = 1
+    value = {}
+
+    def original(a):
+        return (a, marker)
+
+    memoized = cache.memoize()(original)
+
+    assert memoized.cache is cache
+    assert memoized.uncached is original
+
+    _, markx = memoized(value)
+    assert markx == marker
+
+    marker += 1
+    _, marky = memoized(value)
+
+    assert marky != marker
+    assert marky == markx
+
+    _, markz = memoized.uncached(value)
+    assert markz == marker
+
+
 def test_cache_size(cache):
     """Test that cache.size() returns the number of cache keys."""
     assert cache.size() == len(cache) == 0

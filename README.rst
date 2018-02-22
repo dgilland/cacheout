@@ -25,6 +25,7 @@ Features
 - Maximum cache size enforcement
 - Default cache TTL (time-to-live) as well as custom TTLs per cache entry
 - Bulk set, get, and delete operations
+- Memoization decorators
 - Thread safe
 - Multiple cache implementations:
 
@@ -39,7 +40,6 @@ Features
 Roadmap
 =======
 
-- Memoization decorator
 - Layered caching (multi-level caching)
 - Cache event listener support (e.g. on-get, on-set, on-delete)
 - Regular expression support in cache get
@@ -102,6 +102,38 @@ Set the TTL (time-to-live) expiration per entry:
     assert cache.get(3) == {'data': {}}
     time.sleep(1)
     assert cache.get(3) is None
+
+
+Memoize a function where cache keys are generated from the called function parameters:
+
+.. code-block:: python
+
+    @cache.memoize()
+    def func(a, b):
+        pass
+
+
+Provide a TTL for the memoized function and incorporate argument types into generated cache keys:
+
+.. code-block:: python
+
+    @cache.memoize(ttl=5, typed=True)
+    def func(a, b):
+        pass
+
+    # func(1, 2) has different cache key than func(1.0, 2.0), whereas,
+    # with "typed=False" (the default), they would have the same key
+
+
+Access the original memoized function:
+
+.. code-block:: python
+
+    @cache.memoize()
+    def func(a, b):
+        pass
+
+    func.uncached(1, 2)
 
 
 Get a copy of the entire cache with ``cache.copy()``:

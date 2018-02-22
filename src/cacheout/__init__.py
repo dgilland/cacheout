@@ -17,4 +17,13 @@ from .lfu import LFUCache
 from .lru import LRUCache
 from .mru import MRUCache
 from .rr import RRCache
+from .memoization import (
+    memoize,
+    fifo_memoize,
+    lfu_memoize,
+    lifo_memoize,
+    lru_memoize,
+    mru_memoize,
+    rr_memoize
+)
 from .manager import CacheManager
