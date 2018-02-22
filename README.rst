@@ -73,11 +73,11 @@ Let's start with some basic caching by creating a cache object:
     cache = Cache()
 
 
-By default the ``cache`` object will have a maximum size of ``300`` and default TTL expiration turned off. These values can be set with:
+By default the ``cache`` object will have a maximum size of ``256`` and default TTL expiration turned off. These values can be set with:
 
 .. code-block:: python
 
-    cache = Cache(maxsize=300, ttl=0, timer=time.time)  # defaults
+    cache = Cache(maxsize=256, ttl=0, timer=time.time)  # defaults
 
 
 Set a cache key using ``cache.set()``:

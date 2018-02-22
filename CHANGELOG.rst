@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+- Changed default cache ``maxsize`` from ``300`` to ``256``. (**breaking change**)
+
+
 v0.6.0 (2018-02-05)
 -------------------
 

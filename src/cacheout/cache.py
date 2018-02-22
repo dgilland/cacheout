@@ -28,13 +28,13 @@ class Cache(object):
 
     Attributes:
         maxsize (int, optional): Maximum size of cache dictionary. Defaults to
-            ``300``.
+            ``256``.
         ttl (int, optional): Default TTL for all cache entries. Defaults to
             ``0`` which means that entries do not expire.
         timer (callable, optional): Timer function to use to calculate TTL
             expiration. Defaults to ``time.time``.
     """
-    def __init__(self, maxsize=300, ttl=0, timer=time.time):
+    def __init__(self, maxsize=256, ttl=0, timer=time.time):
         self.setup()
         self.configure(maxsize=maxsize, ttl=ttl, timer=timer)
 
