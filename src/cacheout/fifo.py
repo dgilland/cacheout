@@ -1,4 +1,4 @@
-"""The fifo module provides the :class:`FIFOCache` (First-In, Last-Out) class.
+"""The fifo module provides the :class:`FIFOCache` (First-In, First-Out) class.
 
 Note:
     The :class:`FIOCache` is an alias to :class:`.Cache` since :class:`.Cache`
