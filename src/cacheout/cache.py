@@ -12,6 +12,9 @@ from threading import RLock
 import time
 
 
+_NOTSET = object()
+
+
 class Cache(object):
     """An in-memory, FIFO cache object that supports:
 
@@ -151,10 +154,12 @@ class Cache(object):
         Returns:
             bool
         """
+        with self._lock:
+            return self._has(key)
+
+    def _has(self, key):
         # Use get method since it will take care of evicting expired keys.
-        with suppress(KeyError):
-            self.get(key)
-        return key in self
+        return self._get(key, default=_NOTSET) is not _NOTSET
 
     def size(self):
         """Return number of cache entries."""
