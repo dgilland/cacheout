@@ -227,9 +227,13 @@ class Cache(object):
             ttl (int, optional): TTL value. Defaults to ``None`` which uses
                 :attr:`ttl`.
         """
-        if self.has(key):
+        with self._lock:
+            self._add(key, value, ttl=ttl)
+
+    def _add(self, key, value, ttl=None):
+        if self._has(key):
             return
-        self.set(key, value, ttl=ttl)
+        self._set(key, value, ttl=ttl)
 
     def add_many(self, items, ttl=None):
         """Add multiple cache keys at once.
@@ -254,18 +258,16 @@ class Cache(object):
             ttl (int, optional): TTL value. Defaults to ``None`` which uses
                 :attr:`ttl`.
         """
+        with self._lock:
+            self._set(key, value, ttl=ttl)
+
+    def _set(self, key, value, ttl=None):
         if ttl is None:
             ttl = self.ttl
 
         if key not in self:
             self.evict()
 
-        # Set key and move it to the end of the stack to simulate FIFO since
-        # cache entries are deleted from the front first.
-        with self._lock:
-            self._set(key, value, ttl=ttl)
-
-    def _set(self, key, value, ttl=None):
         self._delete(key)
         self._cache[key] = value
 
@@ -329,6 +331,10 @@ class Cache(object):
         Returns:
             int: Number of entries deleted.
         """
+        with self._lock:
+            return self._delete_expired()
+
+    def _delete_expired(self):
         count = 0
 
         if not self._expire_times:
@@ -337,11 +343,11 @@ class Cache(object):
         # Use a static expiration time for each key for better consistency as
         # opposed to a newly computed timestamp on each iteration.
         expires_on = self.timer()
-        expired_keys = (key for key in self.expire_times()
-                        if self.expired(key, expires_on=expires_on))
+        expire_times = self._expire_times.copy()
 
-        for key in expired_keys:
-            count += self.delete(key)
+        for key, expiration in expire_times.items():
+            if expiration <= expires_on:
+                count += self._delete(key)
 
         return count
 
@@ -390,6 +396,9 @@ class Cache(object):
         """
         count = self.delete_expired()
 
+        if not self.full():
+            return count
+
         with self._lock:
             while self.full():
                 try:
@@ -408,9 +417,8 @@ class Cache(object):
         Returns:
             tuple: Two-element tuple of deleted cache ``(key, value)``.
         """
-        self.delete_expired()
-
         with self._lock:
+            self._delete_expired()
             return self._popitem()
 
     def _popitem(self):
