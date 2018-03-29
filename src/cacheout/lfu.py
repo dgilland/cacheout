@@ -2,7 +2,6 @@
 """
 
 from collections import Counter
-from contextlib import suppress
 
 from .cache import Cache
 
@@ -46,8 +45,10 @@ class LFUCache(Cache):
     def _delete(self, key):
         count = super()._delete(key)
 
-        with suppress(KeyError):
+        try:
             del self._access_counts[key]
+        except KeyError:  # pragma: no cover
+            pass
 
         return count
 

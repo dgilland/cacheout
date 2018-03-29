@@ -3,7 +3,6 @@ base for all other cache types.
 """
 
 from collections import OrderedDict
-from contextlib import suppress
 from decimal import Decimal
 from functools import wraps
 import hashlib
@@ -295,12 +294,16 @@ class Cache(object):
     def _delete(self, key):
         count = 0
 
-        with suppress(KeyError):
+        try:
             del self._cache[key]
             count = 1
+        except KeyError:
+            pass
 
-        with suppress(KeyError):
+        try:
             del self._expire_times[key]
+        except KeyError:
+            pass
 
         return count
 
