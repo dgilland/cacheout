@@ -87,7 +87,7 @@ class Cache(object):
             return key in self._cache
 
     def __iter__(self):
-        return self.keys()
+        yield from self.keys()
 
     def __next__(self):
         return next(iter(self._cache))
@@ -102,45 +102,37 @@ class Cache(object):
             return self._cache.copy()
 
     def keys(self):
-        """Yield each cache key.
+        """Return ``dict_keys`` view of all cache keys.
 
         Note:
-            Cache keys are copied from the underlying cache storage and yielded
-            from that copy.
+            Cache is copied from the underlying cache storage before returning.
 
-        Yields:
-            mixed: Cache keys
+        Returns:
+            dict_keys
         """
-        with self._lock:
-            keys = tuple(self._cache.keys())
-        yield from keys
+        return self.copy().keys()
 
     def values(self):
-        """Yield each cache value.
+        """Return ``dict_values`` view of all cache values.
 
         Note:
-            Cache keys are copied from the underlying cache storage and yielded
-            from that copy.
+            Cache is copied from the underlying cache storage before returning.
 
-        Warning:
-            Returned data is copied from the cache object, but any
-            modifications to mutable values will also modify the cache object's
-            data.
-
-        Yields:
-            mixed: Cache values
+        Returns:
+            dict_values
         """
-        with self._lock:
-            values = tuple(self._cache.values())
-        yield from values
+        return self.copy().values()
 
     def items(self):
-        """Return a dict view object of cache items.
+        """Return a ``dict_items`` view of cache items.
 
         Warning:
             Returned data is copied from the cache object, but any
-            modifications to mutable values will also modify the cache object's
+            modifications to mutable values will modify this cache object's
             data.
+
+        Returns:
+            dict_items
         """
         return self.copy().items()
 

@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+- Make ``Cache.keys()`` and ``Cache.values()`` return dictionary view objects instead of yielding items. (**breaking change**)
+
+
 v0.7.0 (2018-02-22)
 -------------------
 
