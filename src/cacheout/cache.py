@@ -4,9 +4,11 @@ base for all other cache types.
 
 from collections import OrderedDict
 from decimal import Decimal
+import fnmatch
 from functools import wraps
 import hashlib
 import inspect
+import re
 from threading import RLock
 import time
 
@@ -214,6 +216,28 @@ class Cache(object):
         """
         return {key: self.get(key, default=default) for key in keys}
 
+    def get_many_by(self, iteratee, default=None):
+        """Like :meth:`get_many` except that it accepts an `iteratee` that can
+        be used to filter the cache keys. The `iteratee` can be one of:
+
+        - ``str`` - Search string that supports Unix shell-style wildcards.
+        - ``re.compile()`` - Compiled regular expression.
+        - ``function`` - Function that returns whether a key matches. Invoked
+          with ``iteratee(key)``.
+        - ``list``` - List of keys to match on. This is equivalent to calling
+          ``Cache.get_many(iteratee)``.
+
+        Args:
+            iteratee (str|Pattern|callable|list): Iteratee to filter by.
+            default (mixed, optional): Value to return if key doesn't exist.
+                Defaults to ``None``.
+
+        Returns:
+            dict
+        """
+        with self._lock:
+            return self.get_many(self._filter(iteratee), default=default)
+
     def add(self, key, value, ttl=None):
         """Add cache key/value if it doesn't already exist. Essentially, this
         method ignores keys that exist which leaves the original TTL in tact.
@@ -325,6 +349,26 @@ class Cache(object):
 
         return count
 
+    def delete_many_by(self, iteratee):
+        """Like :meth:`delete_many` except that it accepts an `iteratee` that
+        can be used to filter the cache keys. The `iteratee` can be one of:
+
+        - ``str`` - Search string that supports Unix shell-style wildcards.
+        - ``re.compile()`` - Compiled regular expression.
+        - ``function`` - Function that returns whether a key matches. Invoked
+          with ``iteratee(key)``.
+        - ``list``` - List of keys to match on. This is equivalent to calling
+          ``Cache.get_many(iteratee)``.
+
+        Args:
+            iteratee (str|Pattern|callable|list): Iteratee to filter by.
+
+        Returns:
+            int: Number of cache keys deleted.
+        """
+        with self._lock:
+            return self.delete_many(list(self._filter(iteratee)))
+
     def delete_expired(self):
         """Delete expired cache keys and return number of entries deleted.
 
@@ -432,6 +476,19 @@ class Cache(object):
         self._delete(key)
 
         return (key, value)
+
+    def _filter(self, iteratee):
+        if isinstance(iteratee, str):
+            filter_by = re.compile(fnmatch.translate(iteratee)).match
+        elif isinstance(iteratee, re._pattern_type):
+            filter_by = iteratee.match
+        elif callable(iteratee):
+            filter_by = iteratee
+        else:
+            def filter_by(key):
+                return key in iteratee
+
+        return filter(filter_by, self._cache)
 
     def memoize(self, *, ttl=None, typed=False):
         """Decorator that wraps a function with a memoizing callable.

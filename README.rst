@@ -25,6 +25,7 @@ Features
 - Maximum cache size enforcement
 - Default cache TTL (time-to-live) as well as custom TTLs per cache entry
 - Bulk set, get, and delete operations
+- Bulk get and delete operations filtered by string, regex, or function
 - Memoization decorators
 - Thread safe
 - Multiple cache implementations:
@@ -42,7 +43,6 @@ Roadmap
 
 - Layered caching (multi-level caching)
 - Cache event listener support (e.g. on-get, on-set, on-delete)
-- Regular expression support in cache get
 - Set-on-missing callback support in cache get
 - Cache statistics (e.g. cache hits/misses, cache frequency, etc)
 
@@ -167,6 +167,21 @@ Perform bulk operations with ``cache.set_many()``, ``cache.get_many()``, and ``c
     assert cache.get_many(['a', 'b', 'c']) == {'a': 1, 'b': 2, 'c': 3}
     cache.delete_many(['a', 'b', 'c'])
     assert cache.count() == 0
+
+
+Use a complex filtering in ``cache.get_many_by()`` and ``cache.delete_many_by()``:
+
+.. code-block:: python
+
+    import re
+    cache.set_many({'a_1': 1, 'a_2': 2, '123': 3, 'b': 4})
+
+    cache.get_many_by('a_*') == {'a_1': 1, 'a_2': 2}
+    cache.get_many_by(re.compile(r'\d')) == {'123': 3}
+    cache.get_many_by(lambda key: '2' in key) == {'a_2': 2, '123': 3}
+
+    cache.delete_many_by('a_*')
+    assert dict(cache.items()) == {'123': 3, 'b': 4}
 
 
 Reconfigure the cache object after creation with ``cache.configure()``:
