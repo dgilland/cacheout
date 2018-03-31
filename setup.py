@@ -39,7 +39,7 @@ setup(
     keywords=('cacheout cache caching memoize memoization fifo lifo lfu lru '
               'mru'),
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Operating System :: OS Independent',
         'Programming Language :: Python',

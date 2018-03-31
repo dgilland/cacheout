@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+v0.9.0 (2018-03-31)
+-------------------
+
 - Merge functionality of ``Cache.get_many_by()`` into ``Cache.get_many()`` and remove ``Cache.get_many_by()``. (**breaking change**).
 - Merge functionality of ``Cache.delete_many_by()`` into ``Cache.delete_many()`` and remove ``Cache.delete_many_by()``. (**breaking change**).
 
