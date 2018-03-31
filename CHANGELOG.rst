@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+v0.8.0 (2018-03-30)
+-------------------
+
 - Add ``Cache.get_many_by()``.
 - Add ``Cache.delete_many_by()``.
 - Make ``Cache.keys()`` and ``Cache.values()`` return dictionary view objects instead of yielding items. (**breaking change**)
