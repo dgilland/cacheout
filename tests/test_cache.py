@@ -122,14 +122,6 @@ def test_cache_get(cache):
     assert cache.get(key) == value
 
 
-def test_cache_get_many(cache):
-    """Test that cache.get_many() returns multiple cache key/values."""
-    items = {'a': 1, 'b': 2, 'c': 3}
-    cache.set_many(items)
-
-    assert cache.get_many(items.keys()) == items
-
-
 @parametrize('items,iteratee,expected', [
     ({'a_1': 1, 'a_2': 2, 'bcd': 3, 'bed': 4, '12345': 5},
      ['a_1', '12345'],
@@ -144,13 +136,12 @@ def test_cache_get_many(cache):
      lambda key: key.startswith('b') and key.endswith('d'),
      {'bcd': 3, 'bed': 4}),
 ])
-def test_cache_get_many_by(cache, items, iteratee, expected):
-    """Test that cache.get_many_by() returns multiple cache key/values filtered
+def test_cache_get_many(cache, items, iteratee, expected):
+    """Test that cache.get_many() returns multiple cache key/values filtered
     by an iteratee.
     """
     cache.set_many(items)
-
-    assert cache.get_many_by(iteratee) == expected
+    assert cache.get_many(iteratee) == expected
 
 
 def test_cache_delete(cache):
@@ -166,19 +157,10 @@ def test_cache_delete(cache):
     assert not cache.has(key)
 
 
-def test_cache_delete_many(cache):
-    """Test that cache.delete_many() deletes multiple cache key/values."""
-    items = {'a': 1, 'b': 2, 'c': 3}
-    cache.set_many(items)
-
-    assert len(cache) == len(items)
-
-    cache.delete_many(items.keys())
-
-    assert len(cache) == 0
-
-
 @parametrize('items,iteratee,expected', [
+    ({'a_1': 1, 'a_2': 2, 'bcd': 3, 'bed': 4, '12345': 5},
+     ['a_1', '12345'],
+     {'a_2': 2, 'bcd': 3, 'bed': 4}),
     ({'a_1': 1, 'a_2': 2, 'bcd': 3, 'bed': 4, '12345': 5},
      ['a_1', '12345'],
      {'a_2': 2, 'bcd': 3, 'bed': 4}),
@@ -192,13 +174,13 @@ def test_cache_delete_many(cache):
      lambda key: key.startswith('b') and key.endswith('d'),
      {'a_1': 1, 'a_2': 2, '12345': 5}),
 ])
-def test_cache_delete_many_by(cache, items, iteratee, expected):
-    """Test that cache.delete_many_by() deletes multiple cache key/values
-    filtered by an iteratee.
+def test_cache_delete_many(cache, items, iteratee, expected):
+    """Test that cache.delete_many() deletes multiple cache key/values filtered
+    by an iteratee.
     """
     cache.set_many(items)
 
-    cache.delete_many_by(iteratee)
+    cache.delete_many(iteratee)
 
     assert dict(cache.items()) == expected
 
