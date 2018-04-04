@@ -117,9 +117,50 @@ def test_cache_get(cache):
 
     assert cache.get(key) is None
     assert cache.get(key, default=1) == 1
+    assert key not in cache
 
     cache.set(key, value)
     assert cache.get(key) == value
+
+
+def test_cache_default():
+    """Test that Cache can set the default for Cache.get()."""
+    cache = Cache(default=True)
+
+    assert cache.get(1) is True
+    assert 1 not in cache
+    assert cache.get(2, default=False) is False
+    assert 2 not in cache
+
+
+def test_cache_default_callable():
+    """Test that Cache can set a default function for Cache.get()."""
+    def default(key):
+        return False
+
+    def default_override(key):
+        return key
+
+    cache = Cache(default=default)
+
+    assert cache.get('key1') is False
+    assert cache.get('key1', default=default_override) is False
+    assert cache.get('key2', default=default_override) == 'key2'
+    assert cache.get('key3', default=3) == 3
+
+
+def test_cache_get_default_callable(cache):
+    """Test that cache.get() uses a default function when value is not found to
+    set cache keys.
+    """
+    def default(key):
+        return key
+
+    key = 'key'
+
+    assert cache.get(key) is None
+    assert cache.get(key, default=default) == key
+    assert key in cache
 
 
 @parametrize('items,iteratee,expected', [

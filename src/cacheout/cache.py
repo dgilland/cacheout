@@ -40,17 +40,30 @@ class Cache(object):
             ``0`` which means that entries do not expire.
         timer (callable, optional): Timer function to use to calculate TTL
             expiration. Defaults to ``time.time``.
+        default (mixed, optional): Default value or function to use in
+            :meth:`get` when key is not found. If callable, it will be passed a
+            single argument, ``key``, and its return value will be set for that
+            cache key.
     """
-    def __init__(self, maxsize=256, ttl=0, timer=time.time):
+    def __init__(self, maxsize=None, ttl=None, timer=None, default=None):
+        if maxsize is None:
+            maxsize = 256
+
+        if ttl is None:
+            ttl = 0
+
+        if timer is None:
+            timer = time.time
+
         self.setup()
-        self.configure(maxsize=maxsize, ttl=ttl, timer=timer)
+        self.configure(maxsize=maxsize, ttl=ttl, timer=timer, default=default)
 
     def setup(self):
         self._cache = OrderedDict()
         self._expire_times = {}
         self._lock = RLock()
 
-    def configure(self, maxsize=None, ttl=None, timer=None):
+    def configure(self, maxsize=None, ttl=None, timer=None, default=None):
         """Configure cache settings. This method is meant to support runtime
         level configurations for global level cache objects.
         """
@@ -77,6 +90,8 @@ class Cache(object):
                 raise TypeError('timer must be a callable')
 
             self.timer = timer
+
+        self.default = default
 
     def __repr__(self):
         return '{}({})'.format(self.__class__.__name__,
@@ -177,13 +192,17 @@ class Cache(object):
         return len(self) >= self.maxsize
 
     def get(self, key, default=None):
-        """Return the cache value for `key` or `default` if it doesn't exist or
-        has expired.
+        """Return the cache value for `key` or `default` or ``missing(key)`` if
+        it doesn't exist or has expired.
 
         Args:
             key (mixed): Cache key.
             default (mixed, optional): Value to return if `key` doesn't exist.
-                Defaults to ``None``.
+                If any value other than ``None``, then it will take precendence
+                over :attr:`missing` and be used as the return value. If
+                `default` is callable, it will function like :attr:`missing`
+                and its return value will be set for the cache `key`. Defaults
+                to ``None``.
 
         Returns:
             mixed: The cached value.
@@ -199,7 +218,14 @@ class Cache(object):
                 self._delete(key)
                 raise KeyError
         except KeyError:
-            value = default
+            if default is None:
+                default = self.default
+
+            if callable(default):
+                value = default(key)
+                self._set(key, value)
+            else:
+                value = default
 
         return value
 
