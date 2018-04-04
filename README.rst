@@ -43,7 +43,6 @@ Roadmap
 
 - Layered caching (multi-level caching)
 - Cache event listener support (e.g. on-get, on-set, on-delete)
-- Set-on-missing callback support in cache get
 - Cache statistics (e.g. cache hits/misses, cache frequency, etc)
 
 
@@ -77,7 +76,7 @@ By default the ``cache`` object will have a maximum size of ``256`` and default 
 
 .. code-block:: python
 
-    cache = Cache(maxsize=256, ttl=0, timer=time.time)  # defaults
+    cache = Cache(maxsize=256, ttl=0, timer=time.time, default=None)  # defaults
 
 
 Set a cache key using ``cache.set()``:
@@ -92,6 +91,38 @@ Get the value of a cache key with ``cache.get()``:
 .. code-block:: python
 
     assert cache.get(1) == 'foobar'
+
+
+Get a default value when cache key isn't set:
+
+.. code-block:: python
+
+    assertcache.get(2) is None
+    assert cache.get(2, default=False) is False
+    assert 2 not in cache
+
+
+Provide cache values using a default callable:
+
+.. code-block:: python
+
+    assert 2 not in cache
+    assert cache.get(2, default=lambda key: key) == 2
+    assert cache.get(2) == 2
+    assert 2 in cache
+
+
+Provide a global default:
+
+.. code-block:: python
+
+    cache2 = Cache(default=True)
+    assert cache2.get('missing') is True
+    assert 'missing' not in cache2
+
+    cache3 = Cache(default=lambda key: key)
+    assert cache3.get('missing') == 'missing'
+    assert 'missing' in cache3
 
 
 Set the TTL (time-to-live) expiration per entry:
