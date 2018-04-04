@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+v0.10.0 (2018-04-03)
+--------------------
+
 - Modify behavior of ``default`` argument to ``Cache.get()`` so that if ``default`` is a callable and the cache key is missing, then it will be called and its return value will be used as the value for cache key and subsequently be set as the value for the key in the cache. (**breaking change**)
 - Add ``default`` argument to ``Cache()`` that can be used to override the value for ``default`` in ``Cache.get()``.
 
