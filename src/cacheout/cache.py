@@ -12,6 +12,11 @@ import re
 from threading import RLock
 import time
 
+try:
+    from re import Pattern
+except ImportError:  # pragma: no cover
+    from re import _pattern_type as Pattern
+
 
 _NOTSET = object()
 
@@ -485,7 +490,7 @@ class Cache(object):
 
         if isinstance(iteratee, str):
             filter_by = re.compile(fnmatch.translate(iteratee)).match
-        elif isinstance(iteratee, re._pattern_type):
+        elif isinstance(iteratee, Pattern):
             filter_by = iteratee.match
         elif callable(iteratee):
             filter_by = iteratee
