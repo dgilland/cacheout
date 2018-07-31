@@ -13,5 +13,12 @@ class LRUCache(Cache):
     """
     def _get(self, key, default=None):
         value = super()._get(key, default=default)
-        self._cache.move_to_end(key)
+
+        try:
+            self._cache.move_to_end(key)
+        except KeyError:
+            # KeyError occurs when cache key doesn't exist which happens when
+            # default value is used.
+            pass
+
         return value

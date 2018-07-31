@@ -76,3 +76,9 @@ def test_lru_get(cache):
     """Test that LRUCache.get() returns cached value."""
     for key, value in cache.items():
         assert cache.get(key) == value
+
+
+def test_lru_get_default(cache):
+    """Test that LRUCache.get() returns a default value."""
+    default = 'bar'
+    assert cache.get('foo', default=default) == default
