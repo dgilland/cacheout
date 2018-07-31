@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+v0.10.2 (2018-07-31)
+--------------------
+
 - Fix bug in ``LRUCache.get()`` where supplying a ``default`` value would result in a ``KeyError``.
 
 
