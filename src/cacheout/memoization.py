@@ -11,7 +11,7 @@ from .mru import MRUCache
 from .rr import RRCache
 
 
-def memoize(maxsize=128, ttl=0):
+def memoize(maxsize=128, ttl=0, typed=False):
     """Decorator that wraps a function with a memoizing callable.
 
     A cache object will be created for each memoized function using
@@ -27,35 +27,39 @@ def memoize(maxsize=128, ttl=0):
             ``128``.
         ttl (int, optional): Default TTL for all cache entries. Defaults to
             ``0`` which means that entries do not expire.
+        typed (bool, optional): Whether to cache arguments of a different
+                type separately. For example, ``<function>(1)`` and
+                ``<function>(1.0)`` would be treated differently. Defaults to
+                ``False``.
     """
-    return Cache(maxsize=maxsize, ttl=ttl).memoize()
+    return Cache(maxsize=maxsize, ttl=ttl).memoize(typed=typed)
 
 
-def fifo_memoize(maxsize=128, ttl=0):
+def fifo_memoize(maxsize=128, ttl=0, typed=False):
     """Like :func:`memoize` except it uses :class:`.FIFOCache`."""
-    return FIFOCache(maxsize=maxsize, ttl=ttl).memoize()
+    return FIFOCache(maxsize=maxsize, ttl=ttl).memoize(typed=typed)
 
 
-def lifo_memoize(maxsize=128, ttl=0):
+def lifo_memoize(maxsize=128, ttl=0, typed=False):
     """Like :func:`memoize` except it uses :class:`.LIFOCache`."""
-    return LIFOCache(maxsize=maxsize, ttl=ttl).memoize()
+    return LIFOCache(maxsize=maxsize, ttl=ttl).memoize(typed=typed)
 
 
-def lfu_memoize(maxsize=128, ttl=0):
+def lfu_memoize(maxsize=128, ttl=0, typed=False):
     """Like :func:`memoize` except it uses :class:`.LFUCache`."""
-    return LFUCache(maxsize=maxsize, ttl=ttl).memoize()
+    return LFUCache(maxsize=maxsize, ttl=ttl).memoize(typed=typed)
 
 
-def lru_memoize(maxsize=128, ttl=0):
+def lru_memoize(maxsize=128, ttl=0, typed=False):
     """Like :func:`memoize` except it uses :class:`.LRUCache`."""
-    return LRUCache(maxsize=maxsize, ttl=ttl).memoize()
+    return LRUCache(maxsize=maxsize, ttl=ttl).memoize(typed=typed)
 
 
-def mru_memoize(maxsize=128, ttl=0):
+def mru_memoize(maxsize=128, ttl=0, typed=False):
     """Like :func:`memoize` except it uses :class:`.MRUCache`."""
-    return MRUCache(maxsize=maxsize, ttl=ttl).memoize()
+    return MRUCache(maxsize=maxsize, ttl=ttl).memoize(typed=typed)
 
 
-def rr_memoize(maxsize=128, ttl=0):
+def rr_memoize(maxsize=128, ttl=0, typed=False):
     """Like :func:`memoize` except it uses :class:`.RRCache`."""
-    return RRCache(maxsize=maxsize, ttl=ttl).memoize()
+    return RRCache(maxsize=maxsize, ttl=ttl).memoize(typed=typed)

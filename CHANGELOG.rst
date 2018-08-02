@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+- Expose ``typed`` argument of underlying ``*Cache.memoize()`` in ``memoize()`` and ``*_memoize()`` decorators.
+
+
 v0.10.2 (2018-07-31)
 --------------------
 
