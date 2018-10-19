@@ -1,4 +1,5 @@
 
+import asyncio
 import re
 
 import pytest
@@ -404,6 +405,37 @@ def test_cache_memoize_func_attrs(cache):
 
     _, markz = memoized.uncached(value)
     assert markz == marker
+
+
+def test_cache_memoize_coroutine(cache):
+    """Test that cache.memoize() can decorate coroutines."""
+    marker = 1
+
+    @cache.memoize()
+    @asyncio.coroutine
+    def func(a):
+        return (a, marker)
+
+    assert asyncio.iscoroutinefunction(func)
+
+    assert len(cache) == 0
+
+    result = asyncio.get_event_loop().run_until_complete(func('a'))
+
+    assert result == ('a', 1)
+    assert len(cache) == 1
+    assert list(cache.values())[0] == ('a', 1)
+
+    marker += 1
+    result = asyncio.get_event_loop().run_until_complete(func('a'))
+
+    assert result == ('a', 1)
+    assert len(cache) == 1
+
+    result = asyncio.get_event_loop().run_until_complete(func('b'))
+
+    assert result == ('b', 2)
+    assert len(cache) == 2
 
 
 def test_cache_size(cache):

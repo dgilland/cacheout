@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+- Add asyncio support to memoization decorators so they can decorate coroutines.
+
+
 v0.10.3 (2018-08-01)
 --------------------
 
