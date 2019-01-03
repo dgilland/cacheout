@@ -2,7 +2,6 @@
 base for all other cache types.
 """
 
-import asyncio
 from collections import OrderedDict
 from decimal import Decimal
 import fnmatch
@@ -510,15 +509,12 @@ class Cache(object):
         return filter(filter_by, target)
 
     def memoize(self, *, ttl=None, typed=False):
-        """Decorator that wraps a function with a memoizing callable and works
-        on both synchronous and asynchronous functions.
-
+        """Decorator that wraps a function with a memoizing callable.
         Each return value from the function will be cached using the function
         arguments as the cache key. The cache object can be accessed at
         ``<function>.cache``. The uncached version (i.e. the original function)
         can be accessed at ``<function>.uncached``. Each return value from the
         function will be cached using the function arguments as the cache key.
-
         Keyword Args:
             ttl (int, optional): TTL value. Defaults to ``None`` which uses
                 :attr:`ttl`.
@@ -532,8 +528,8 @@ class Cache(object):
         def decorator(func):
             prefix = '{}.{}:'.format(func.__module__, func.__name__)
             argspec = inspect.getfullargspec(func)
-            iscoroutine = asyncio.iscoroutinefunction(func)
 
+            @wraps(func)
             def decorated(*args, **kargs):
                 key = _make_memoize_key(func,
                                         args,
@@ -546,23 +542,10 @@ class Cache(object):
 
                 if value is marker:
                     value = func(*args, **kargs)
-
-                    if iscoroutine:
-                        # NOTE: We need to use next() on another function
-                        # instead of yield from value since we don't want to
-                        # make this function a generator. This is an ugly hack
-                        # to make memoize() be able to decorate both sync and
-                        # async functions.
-                        value = next(_unwrap_coroutine(value))
-
                     self.set(key, value, ttl=ttl)
 
                 return value
 
-            if iscoroutine:
-                decorated = asyncio.coroutine(decorated)
-
-            decorated = wraps(func)(decorated)
             decorated.cache = self
             decorated.uncached = func
 
@@ -614,9 +597,3 @@ def _hash_value(value):
         return hash(value)
     except TypeError:
         return repr(value)
-
-
-@asyncio.coroutine
-def _unwrap_coroutine(value):
-    value = yield from value
-    yield value
