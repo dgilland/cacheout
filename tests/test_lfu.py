@@ -1,4 +1,3 @@
-
 from random import SystemRandom
 
 import pytest
@@ -30,11 +29,7 @@ def assert_keys_evicted_in_order(cache, keys):
 
 def test_lfu_eviction(cache):
     """Test that LFUCache evicts least frequently used set entries first."""
-    key_counts = [('a', 4),
-                  ('b', 3),
-                  ('c', 5),
-                  ('d', 1),
-                  ('e', 2)]
+    key_counts = [("a", 4), ("b", 3), ("c", 5), ("d", 1), ("e", 2)]
 
     for key, count in key_counts:
         cache.set(key, key)
@@ -55,7 +50,7 @@ def test_lfu_eviction(cache):
         assert cache.full()
         assert eviction_order[n] not in cache
 
-        for key in eviction_order[(n + 1):]:
+        for key in eviction_order[(n + 1) :]:
             assert key in cache
 
 

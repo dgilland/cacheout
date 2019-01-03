@@ -1,4 +1,3 @@
-
 from random import SystemRandom
 
 import pytest
@@ -25,27 +24,25 @@ def test_lifo_eviction(cache):
 
     keys = sorted(keys, reverse=True)
 
-    # NOTE: The below loop is a somewhat hacky way to test that the cache
-    # entries are removed in LIFO order. It hinges on the reducing the cache
-    # maxsize as we go so that the cache eviction will choose the next cache
-    # entry from the initial set.
+    # NOTE: The below loop is a somewhat hacky way to test that the cache entries are
+    # removed in LIFO order. It hinges on the reducing the cache maxsize as we go so
+    # that the cache eviction will choose the next cache entry from the initial set.
     while keys:
         key = keys.pop(0)
 
-        # Set here to evict "key". This will end up with "-key" added but we'll
-        # remove by calling evict() below.
+        # Set here to evict "key". This will end up with "-key" added but we'll remove
+        # by calling evict() below.
         cache.set(-key, -key)
         assert key not in cache
 
-        # Since cache is full, this will remove 1 entry (the "-key" entry we
-        # just added.
+        # Since cache is full, this will remove 1 entry (the "-key" entry we just added.
         cache.evict()
 
         assert -key not in cache
         assert len(cache) == len(keys)
 
-        # Decrement maxsize to make cache full again without having to modify
-        # cache entries.
+        # Decrement maxsize to make cache full again without having to modify cache
+        # entries.
         cache.maxsize -= 1
 
         # Remaining keys should still be in cache.

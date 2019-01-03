@@ -7,15 +7,17 @@ from .cache import Cache
 
 
 class LFUCache(Cache):
-    """The Least Frequently Used (LFU) cache is like :class:`.Cache` but uses a
+    """
+    The Least Frequently Used (LFU) cache is like :class:`.Cache` but uses a
     least-frequently-used eviction policy.
 
-    The primary difference with :class:`.Cache` is that access to cache entries
-    (i.e. calls to :meth:`get` and :meth:`set`) are tracked; each call to
-    :meth:`get` will increment the cache key's access count while calls to
-    :meth:`set` will reset the counter. During cache eviction, the entry with
-    the lowest access count is removed first.
+    The primary difference with :class:`.Cache` is that access to cache entries (i.e.
+    calls to :meth:`get` and :meth:`set`) are tracked; each call to :meth:`get` will
+    increment the cache key's access count while calls to :meth:`set` will reset the
+    counter. During cache eviction, the entry with the lowest access count is removed
+    first.
     """
+
     def setup(self):
         super().setup()
         self._access_counts = Counter()

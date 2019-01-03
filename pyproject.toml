@@ -1,0 +1,24 @@
+[build-system]
+requires = [
+  "setuptools>=40.0",
+  "wheel",
+]
+
+
+[tool.black]
+line-length = 88
+py36 = true
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | \.cache
+  | _build
+  | build
+  | dist
+  | tests/python_projects
+)/
+'''

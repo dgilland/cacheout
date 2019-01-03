@@ -1,4 +1,5 @@
-"""The manager module provides the :class:`CacheManager` class.
+"""
+The manager module provides the :class:`CacheManager` class.
 """
 
 from threading import RLock
@@ -7,13 +8,13 @@ from .cache import Cache
 
 
 class CacheManager(object):
-    """The cache manager provides an interface for accessing multiple caches
-    indexed by name.
+    """
+    The cache manager provides an interface for accessing multiple caches indexed by
+    name.
 
-    Each named cache is a separate cache instance with its own configuration.
-    Named caches can be configured during initialization or later using the
-    :meth:`setup` (bulk configuration) or :meth:`configure` (individual
-    configuration) methods.
+    Each named cache is a separate cache instance with its own configuration. Named
+    caches can be configured during initialization or later using the :meth:`setup`
+    (bulk configuration) or :meth:`configure` (individual configuration) methods.
 
     Example:
 
@@ -46,12 +47,12 @@ class CacheManager(object):
         >>> caches['D'].set('key2', 'value2')
 
     Args:
-        settings (dict, optional): A ``dict`` indexed by each cache name
-            that should be created and configured. Defaults to ``None`` which
-            doesn't configure anything.
-        cache_class (callable, optional): A factory function used when
-            creating
+        settings (dict, optional): A ``dict`` indexed by each cache name that should be
+            created and configured. Defaults to ``None`` which doesn't configure
+            anything.
+        cache_class (callable, optional): A factory function used when creating a cache.
     """
+
     def __init__(self, settings=None, cache_class=Cache):
         self.cache_class = cache_class
         self._lock = RLock()
@@ -59,36 +60,36 @@ class CacheManager(object):
         self.setup(settings)
 
     def setup(self, settings=None):
-        """Set up named cache instances using configuration defined in
-        `settings`.
+        """
+        Set up named cache instances using configuration defined in `settings`.
 
-        The `settings` should contain key/values corresponding to the cache
-        name and its cache options, respectively. Named caches are then
-        accessible using index access on the cache handler object.
+        The `settings` should contain key/values corresponding to the cache name and its
+        cache options, respectively. Named caches are then accessible using index access
+        on the cache handler object.
 
         Warning:
-            Calling this method will destroy **all** previously configured
-            named caches and replace them with what is defined in `settings`.
+            Calling this method will destroy **all** previously configured named caches
+            and replace them with what is defined in `settings`.
 
         Args:
-            settings (dict, optional): A ``dict`` indexed by each cache name
-                that contains the options for each named cache.
+            settings (dict, optional): A ``dict`` indexed by each cache name that
+                contains the options for each named cache.
         """
         self._caches = {}
 
         if settings is not None:
             if not isinstance(settings, dict):
-                raise TypeError('settings must be a dict')
+                raise TypeError("settings must be a dict")
 
             for name, options in settings.items():
                 self.configure(name, **options)
 
     def configure(self, name, **options):
-        """Configure cache identified by `name`.
+        """
+        Configure cache identified by `name`.
 
         Note:
-            If no cache has been configured for `name`, then it will be
-            created.
+            If no cache has been configured for `name`, then it will be created.
 
         Keyword Args:
             **options: Cache options.
@@ -108,16 +109,16 @@ class CacheManager(object):
         self._caches[name] = cache
 
     def __repr__(self):
-        return '{}({})'.format(self.__class__.__name__,
-                               sorted(self.cache_names()))
+        return "{}({})".format(self.__class__.__name__, sorted(self.cache_names()))
 
     def __getitem__(self, name):
         try:
             return self._caches[name]
         except KeyError:
-            raise KeyError('Cache not configured for {name}. Use '
-                           '"configure({name!r}, **options)" to configure it.'
-                           .format(name=name))
+            raise KeyError(
+                "Cache not configured for {name}. Use "
+                '"configure({name!r}, **options)" to configure it.'.format(name=name)
+            )
 
     def __iter__(self):
         with self._lock:
@@ -129,7 +130,8 @@ class CacheManager(object):
         return name in self._caches
 
     def cache_names(self):
-        """Return list of names of cache entities.
+        """
+        Return list of names of cache entities.
 
         Returns:
             list
@@ -137,7 +139,8 @@ class CacheManager(object):
         return list(name for name, _ in self)
 
     def caches(self):
-        """Return list of cache instances.
+        """
+        Return list of cache instances.
 
         Returns:
             list

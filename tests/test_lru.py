@@ -1,4 +1,3 @@
-
 from random import SystemRandom
 
 import pytest
@@ -55,8 +54,7 @@ def test_lru_get_set_eviction(cache):
     """Test that LRUCache evicts least recently set/accessed entries first."""
     all_keys = list(cache.keys())
     get_keys = random.sample(all_keys, len(cache) // 2)
-    set_keys = random.sample(set(all_keys).difference(get_keys),
-                             len(cache) // 2)
+    set_keys = random.sample(set(all_keys).difference(get_keys), len(cache) // 2)
 
     assert not set(get_keys).intersection(set_keys)
     assert set(get_keys + set_keys) == set(all_keys)
@@ -80,5 +78,5 @@ def test_lru_get(cache):
 
 def test_lru_get_default(cache):
     """Test that LRUCache.get() returns a default value."""
-    default = 'bar'
-    assert cache.get('foo', default=default) == default
+    default = "bar"
+    assert cache.get("foo", default=default) == default

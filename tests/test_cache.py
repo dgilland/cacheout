@@ -1,4 +1,3 @@
-
 import re
 
 import pytest
@@ -13,6 +12,7 @@ parametrize = pytest.mark.parametrize
 def timer():
     def _timer():
         return _timer.time
+
     _timer.time = 0
 
     return _timer
@@ -23,13 +23,16 @@ def cache(timer):
     return Cache(timer=timer)
 
 
-@parametrize('arg,exc', [
-    ({'maxsize': -1}, ValueError),
-    ({'maxsize': '1'}, TypeError),
-    ({'ttl': -1}, ValueError),
-    ({'ttl': '1'}, TypeError),
-    ({'timer': True}, TypeError),
-])
+@parametrize(
+    "arg,exc",
+    [
+        ({"maxsize": -1}, ValueError),
+        ({"maxsize": "1"}, TypeError),
+        ({"ttl": -1}, ValueError),
+        ({"ttl": "1"}, TypeError),
+        ({"timer": True}, TypeError),
+    ],
+)
 def test_cache_init_validation(arg, exc):
     """Test that exceptions are raised on bad argument values/types."""
     with pytest.raises(exc):
@@ -38,7 +41,7 @@ def test_cache_init_validation(arg, exc):
 
 def test_cache_set(cache):
     """Test that cache.set() sets cache key/value."""
-    key, value = ('key', 'value')
+    key, value = ("key", "value")
     cache.set(key, value)
     assert cache.get(key) == value
 
@@ -48,14 +51,14 @@ def test_cache_set_ttl_default(cache, timer):
     default_ttl = 2
     cache.configure(ttl=default_ttl)
 
-    cache.set('key', 'value')
-    assert cache.has('key')
+    cache.set("key", "value")
+    assert cache.has("key")
 
     timer.time = default_ttl - 1
-    assert cache.has('key')
+    assert cache.has("key")
 
     timer.time = default_ttl
-    assert not cache.has('key')
+    assert not cache.has("key")
 
 
 def test_cache_set_ttl_override(cache, timer):
@@ -63,20 +66,20 @@ def test_cache_set_ttl_override(cache, timer):
     default_ttl = 1
     cache.configure(ttl=default_ttl)
 
-    cache.set('key1', 'value1')
-    cache.set('key2', 'value2', ttl=default_ttl + 1)
+    cache.set("key1", "value1")
+    cache.set("key2", "value2", ttl=default_ttl + 1)
 
     timer.time = default_ttl
-    assert not cache.has('key1')
-    assert cache.has('key2')
+    assert not cache.has("key1")
+    assert cache.has("key2")
 
     timer.time = default_ttl + 1
-    assert not cache.has('key2')
+    assert not cache.has("key2")
 
 
 def test_cache_set_many(cache):
     """Test that cache.set_many() sets multiple cache key/values."""
-    items = {'a': 1, 'b': 2, 'c': 3}
+    items = {"a": 1, "b": 2, "c": 3}
     cache.set_many(items)
 
     for key, value in items.items():
@@ -85,7 +88,7 @@ def test_cache_set_many(cache):
 
 def test_cache_add(cache):
     """Test that cache.add() sets a cache key but only if it doesn't exist."""
-    key, value = ('key', 'value')
+    key, value = ("key", "value")
     ttl = 2
 
     cache.add(key, value, ttl)
@@ -102,7 +105,7 @@ def test_cache_add(cache):
 
 def test_cache_add_many(cache):
     """Test that cache.add_many() adds multiple cache key/values."""
-    items = {'a': 1, 'b': 2, 'c': 3}
+    items = {"a": 1, "b": 2, "c": 3}
     cache.add_many(items)
 
     for key, value in items.items():
@@ -113,7 +116,7 @@ def test_cache_get(cache):
     """Test that cache.get() returns a cache key value or a default value if
     missing.
     """
-    key, value = ('key', 'value')
+    key, value = ("key", "value")
 
     assert cache.get(key) is None
     assert cache.get(key, default=1) == 1
@@ -135,6 +138,7 @@ def test_cache_default():
 
 def test_cache_default_callable():
     """Test that Cache can set a default function for Cache.get()."""
+
     def default(key):
         return False
 
@@ -143,43 +147,57 @@ def test_cache_default_callable():
 
     cache = Cache(default=default)
 
-    assert cache.get('key1') is False
-    assert cache.get('key1', default=default_override) is False
-    assert cache.get('key2', default=default_override) == 'key2'
-    assert cache.get('key3', default=3) == 3
+    assert cache.get("key1") is False
+    assert cache.get("key1", default=default_override) is False
+    assert cache.get("key2", default=default_override) == "key2"
+    assert cache.get("key3", default=3) == 3
 
 
 def test_cache_get_default_callable(cache):
-    """Test that cache.get() uses a default function when value is not found to
-    set cache keys.
     """
+    Test that cache.get() uses a default function when value is not found to set cache
+    keys.
+    """
+
     def default(key):
         return key
 
-    key = 'key'
+    key = "key"
 
     assert cache.get(key) is None
     assert cache.get(key, default=default) == key
     assert key in cache
 
 
-@parametrize('items,iteratee,expected', [
-    ({'a_1': 1, 'a_2': 2, 'bcd': 3, 'bed': 4, '12345': 5},
-     ['a_1', '12345'],
-     {'a_1': 1, '12345': 5}),
-    ({'a_1': 1, 'a_2': 2, 'bcd': 3, 'bed': 4, '12345': 5},
-     'a_*',
-     {'a_1': 1, 'a_2': 2}),
-    ({'a_1': 1, 'a_2': 2, 'bcd': 3, 'bed': 4, '12345': 5},
-     re.compile(r'\d'),
-     {'12345': 5}),
-    ({'a_1': 1, 'a_2': 2, 'bcd': 3, 'bed': 4, '12345': 5},
-     lambda key: key.startswith('b') and key.endswith('d'),
-     {'bcd': 3, 'bed': 4}),
-])
+@parametrize(
+    "items,iteratee,expected",
+    [
+        (
+            {"a_1": 1, "a_2": 2, "bcd": 3, "bed": 4, "12345": 5},
+            ["a_1", "12345"],
+            {"a_1": 1, "12345": 5},
+        ),
+        (
+            {"a_1": 1, "a_2": 2, "bcd": 3, "bed": 4, "12345": 5},
+            "a_*",
+            {"a_1": 1, "a_2": 2},
+        ),
+        (
+            {"a_1": 1, "a_2": 2, "bcd": 3, "bed": 4, "12345": 5},
+            re.compile(r"\d"),
+            {"12345": 5},
+        ),
+        (
+            {"a_1": 1, "a_2": 2, "bcd": 3, "bed": 4, "12345": 5},
+            lambda key: key.startswith("b") and key.endswith("d"),
+            {"bcd": 3, "bed": 4},
+        ),
+    ],
+)
 def test_cache_get_many(cache, items, iteratee, expected):
-    """Test that cache.get_many() returns multiple cache key/values filtered
-    by an iteratee.
+    """
+    Test that cache.get_many() returns multiple cache key/values filtered by an
+    iteratee.
     """
     cache.set_many(items)
     assert cache.get_many(iteratee) == expected
@@ -187,7 +205,7 @@ def test_cache_get_many(cache, items, iteratee, expected):
 
 def test_cache_delete(cache):
     """Test that cache.delete() removes a cache key."""
-    key, value = ('key', 'value')
+    key, value = ("key", "value")
     cache.set(key, value)
     assert cache.has(key)
 
@@ -198,26 +216,40 @@ def test_cache_delete(cache):
     assert not cache.has(key)
 
 
-@parametrize('items,iteratee,expected', [
-    ({'a_1': 1, 'a_2': 2, 'bcd': 3, 'bed': 4, '12345': 5},
-     ['a_1', '12345'],
-     {'a_2': 2, 'bcd': 3, 'bed': 4}),
-    ({'a_1': 1, 'a_2': 2, 'bcd': 3, 'bed': 4, '12345': 5},
-     ['a_1', '12345'],
-     {'a_2': 2, 'bcd': 3, 'bed': 4}),
-    ({'a_1': 1, 'a_2': 2, 'bcd': 3, 'bed': 4, '12345': 5},
-     'a_*',
-     {'bcd': 3, 'bed': 4, '12345': 5}),
-    ({'a_1': 1, 'a_2': 2, 'bcd': 3, 'bed': 4, '12345': 5},
-     re.compile(r'\d'),
-     {'a_1': 1, 'a_2': 2, 'bcd': 3, 'bed': 4}),
-    ({'a_1': 1, 'a_2': 2, 'bcd': 3, 'bed': 4, '12345': 5},
-     lambda key: key.startswith('b') and key.endswith('d'),
-     {'a_1': 1, 'a_2': 2, '12345': 5}),
-])
+@parametrize(
+    "items,iteratee,expected",
+    [
+        (
+            {"a_1": 1, "a_2": 2, "bcd": 3, "bed": 4, "12345": 5},
+            ["a_1", "12345"],
+            {"a_2": 2, "bcd": 3, "bed": 4},
+        ),
+        (
+            {"a_1": 1, "a_2": 2, "bcd": 3, "bed": 4, "12345": 5},
+            ["a_1", "12345"],
+            {"a_2": 2, "bcd": 3, "bed": 4},
+        ),
+        (
+            {"a_1": 1, "a_2": 2, "bcd": 3, "bed": 4, "12345": 5},
+            "a_*",
+            {"bcd": 3, "bed": 4, "12345": 5},
+        ),
+        (
+            {"a_1": 1, "a_2": 2, "bcd": 3, "bed": 4, "12345": 5},
+            re.compile(r"\d"),
+            {"a_1": 1, "a_2": 2, "bcd": 3, "bed": 4},
+        ),
+        (
+            {"a_1": 1, "a_2": 2, "bcd": 3, "bed": 4, "12345": 5},
+            lambda key: key.startswith("b") and key.endswith("d"),
+            {"a_1": 1, "a_2": 2, "12345": 5},
+        ),
+    ],
+)
 def test_cache_delete_many(cache, items, iteratee, expected):
-    """Test that cache.delete_many() deletes multiple cache key/values filtered
-    by an iteratee.
+    """
+    Test that cache.delete_many() deletes multiple cache key/values filtered by an
+    iteratee.
     """
     cache.set_many(items)
 
@@ -278,8 +310,9 @@ def test_cache_evict(cache):
 
 
 def test_cache_memoize(cache):
-    """Test that cache.memoize() caches the return value of a function using a
-    key based on function arguments used.
+    """
+    Test that cache.memoize() caches the return value of a function using a key based on
+    function arguments used.
     """
     marker = 1
 
@@ -303,9 +336,10 @@ def test_cache_memoize(cache):
 
 
 def test_cache_memoize_typed(cache):
-    """Test that cache.memoize() can factor in argument types as part of the
-    cache key.
     """
+    Test that cache.memoize() can factor in argument types as part of the cache key.
+    """
+
     @cache.memoize()
     def untyped(a):
         return a
@@ -319,32 +353,40 @@ def test_cache_memoize_typed(cache):
 
     assert len(cache) == 3
 
-    untyped_keys = [key for key in cache.keys()
-                    if key.startswith('{}.{}'.format(untyped.__module__,
-                                                     untyped.__name__))]
+    untyped_keys = [
+        key
+        for key in cache.keys()
+        if key.startswith("{}.{}".format(untyped.__module__, untyped.__name__))
+    ]
 
-    typed_keys = [key for key in cache.keys()
-                  if key.startswith('{}.{}'.format(typed.__module__,
-                                                   typed.__name__))]
+    typed_keys = [
+        key
+        for key in cache.keys()
+        if key.startswith("{}.{}".format(typed.__module__, typed.__name__))
+    ]
 
     assert len(untyped_keys) == 1
     assert len(typed_keys) == 2
 
 
 def test_cache_memoize_arg_normalization(cache):
-    """Test taht cache.memoize() normalizes argument ordering for positional
-    and keyword arguments.
     """
+    Test taht cache.memoize() normalizes argument ordering for positional and keyword
+    arguments.
+    """
+
     @cache.memoize(typed=True)
     def func(a, b, c, d, **kargs):
         return (a, b, c, d)
 
-    for args, kargs in (((1, 2, 3, 4), {'e': 5}),
-                        ((1, 2, 3), {'d': 4, 'e': 5}),
-                        ((1, 2), {'c': 3, 'd': 4, 'e': 5}),
-                        ((1,), {'b': 2, 'c': 3, 'd': 4, 'e': 5}),
-                        ((), {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5}),
-                        ((), {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5})):
+    for args, kargs in (
+        ((1, 2, 3, 4), {"e": 5}),
+        ((1, 2, 3), {"d": 4, "e": 5}),
+        ((1, 2), {"c": 3, "d": 4, "e": 5}),
+        ((1,), {"b": 2, "c": 3, "d": 4, "e": 5}),
+        ((), {"a": 1, "b": 2, "c": 3, "d": 4, "e": 5}),
+        ((), {"a": 1, "b": 2, "c": 3, "d": 4, "e": 5}),
+    ):
         func(*args, **kargs)
         assert len(cache) == 1
 
@@ -434,7 +476,7 @@ def test_cache_full_unbounded(cache):
 
 def test_cache_has(cache):
     """Test that cache.has() returns whether a key exists or not."""
-    key, value = ('key', 'value')
+    key, value = ("key", "value")
 
     assert not cache.has(key)
     assert key not in cache
@@ -447,7 +489,7 @@ def test_cache_has(cache):
 
 def test_cache_has_on_expired(cache, timer):
     """Test that cache.has() takes into account expired keys."""
-    key, value = ('key', 'value')
+    key, value = ("key", "value")
 
     cache.set(key, value, ttl=1)
 
@@ -462,7 +504,7 @@ def test_cache_has_on_expired(cache, timer):
 
 def test_cache_copy(cache):
     """Test that cache.copy() returns a copy of the cache."""
-    items = {'a': 1, 'b': 2, 'c': 3}
+    items = {"a": 1, "b": 2, "c": 3}
     cache.set_many(items)
 
     copied = cache.copy()
@@ -472,7 +514,7 @@ def test_cache_copy(cache):
 
 def test_cache_clear(cache):
     """Test that cache.clear() deletes all cache keys."""
-    items = {'a': 1, 'b': 2, 'c': 3}
+    items = {"a": 1, "b": 2, "c": 3}
     cache.set_many(items)
     assert len(cache) == len(items)
 
@@ -482,7 +524,7 @@ def test_cache_clear(cache):
 
 def test_cache_keys(cache):
     """Test that cache.keys() returns all cache keys."""
-    items = {'a': 1, 'b': 2, 'c': 3}
+    items = {"a": 1, "b": 2, "c": 3}
     cache.set_many(items)
 
     assert sorted(cache.keys()) == sorted(items.keys())
@@ -490,7 +532,7 @@ def test_cache_keys(cache):
 
 def test_cache_values(cache):
     """Test that cache.values() returns all cache values."""
-    items = {'a': 1, 'b': 2, 'c': 3}
+    items = {"a": 1, "b": 2, "c": 3}
     cache.set_many(items)
 
     assert sorted(cache.values()) == sorted(items.values())
@@ -498,7 +540,7 @@ def test_cache_values(cache):
 
 def test_cache_items(cache):
     """Test that cache.items() returns all cache key/values."""
-    items = {'a': 1, 'b': 2, 'c': 3}
+    items = {"a": 1, "b": 2, "c": 3}
     cache.set_many(items)
 
     assert set(cache.items()) == set(items.items())
@@ -523,7 +565,7 @@ def test_cache_popitem(cache):
 
 def test_cache_iter(cache):
     """Test that iterating over cache yields each cache key."""
-    items = {'a': 1, 'b': 2, 'c': 3}
+    items = {"a": 1, "b": 2, "c": 3}
     cache.set_many(items)
 
     keys = []
@@ -536,10 +578,10 @@ def test_cache_iter(cache):
 
 def test_cache_repr(cache):
     """Test that repr(cache) returns a representation of the cache object."""
-    assert repr(cache) == 'Cache([])'
+    assert repr(cache) == "Cache([])"
 
-    cache.set('a', 1)
-    cache.set('b', 2)
-    cache.set('c', 3)
+    cache.set("a", 1)
+    cache.set("b", 2)
+    cache.set("c", 3)
 
     assert repr(cache) == "Cache([('a', 1), ('b', 2), ('c', 3)])"

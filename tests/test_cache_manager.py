@@ -1,4 +1,3 @@
-
 import pytest
 
 from cacheout import Cache, CacheManager
@@ -18,10 +17,12 @@ def assert_cache_options(cache, options):
 
 def test_cache_manager_init_configure():
     """Test that CacheManager can configure bulk caches."""
-    settings = {'a': {},
-                'b': {'maxsize': 10},
-                'c': {'ttl': 60},
-                'd': {'maxsize': 10, 'ttl': 60}}
+    settings = {
+        "a": {},
+        "b": {"maxsize": 10},
+        "c": {"ttl": 60},
+        "d": {"maxsize": 10, "ttl": 60},
+    }
     cacheman = CacheManager(settings)
 
     for name, options in settings.items():
@@ -32,8 +33,8 @@ def test_cache_manager_init_configure():
 
 def test_cache_manager_configure():
     """Test that CacheManager can configure individual caches."""
-    name = 'a'
-    options = {'maxsize': 10, 'ttl': 60}
+    name = "a"
+    options = {"maxsize": 10, "ttl": 60}
     cacheman = CacheManager()
     cacheman.configure(name, **options)
 
@@ -42,16 +43,15 @@ def test_cache_manager_configure():
 
 def test_cache_manager_reconfigure():
     """Test that CacheManager can reconfigure a previously configured cache."""
-    name = 'a'
-    options = {'maxsize': 10, 'ttl': 60}
+    name = "a"
+    options = {"maxsize": 10, "ttl": 60}
     cacheman = CacheManager()
     cacheman.configure(name, **options)
 
     # Store copy of cache to verify identity doesn't change.
     cache = cacheman[name]
 
-    new_options = {'maxsize': options['maxsize'] * 2,
-                   'ttl': options['ttl'] / 2}
+    new_options = {"maxsize": options["maxsize"] * 2, "ttl": options["ttl"] / 2}
 
     cacheman.configure(name, **new_options)
 
@@ -92,20 +92,19 @@ def test_cache_manager_invalid_settings():
 def test_cache_manager_default_cache_class():
     """Test that CacheManager can use a custom default cache class."""
     cacheman = CacheManager(cache_class=MyCache)
-    cacheman.configure('a')
+    cacheman.configure("a")
 
-    assert isinstance(cacheman['a'], MyCache)
+    assert isinstance(cacheman["a"], MyCache)
 
 
 def test_cache_manager_configure_class():
-    """Test that CacheManager can configure caches with a custom cache class.
-    """
-    cacheman = CacheManager({'a': {'cache_class': MyCache}})
-    assert isinstance(cacheman['a'], MyCache)
+    """Test that CacheManager can configure caches with a custom cache class."""
+    cacheman = CacheManager({"a": {"cache_class": MyCache}})
+    assert isinstance(cacheman["a"], MyCache)
 
     cacheman = CacheManager()
-    cacheman.configure('a', cache_class=MyCache)
-    assert isinstance(cacheman['a'], MyCache)
+    cacheman.configure("a", cache_class=MyCache)
+    assert isinstance(cacheman["a"], MyCache)
 
 
 def test_cache_manager_cache_names():
@@ -166,10 +165,10 @@ def test_cache_manager_to_dict():
 
 
 def test_cache_manager_repr():
-    settings = {'a': {}, 'b': {}, 'c': {}}
+    settings = {"a": {}, "b": {}, "c": {}}
     cacheman = CacheManager()
 
-    assert repr(cacheman) == 'CacheManager([])'
+    assert repr(cacheman) == "CacheManager([])"
 
     cacheman.setup(settings)
 

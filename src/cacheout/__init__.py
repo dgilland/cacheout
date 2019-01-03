@@ -17,6 +17,6 @@ from .memoization import (
     lifo_memoize,
     lru_memoize,
     mru_memoize,
-    rr_memoize
+    rr_memoize,
 )
 from .manager import CacheManager
