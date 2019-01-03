@@ -64,7 +64,7 @@ Ready to contribute? Here's how to set up ``cacheout`` for local development.
 3. Install Python dependencies into a virtualenv::
 
     $ cd cacheout
-    $ pip install -r requirements-dev.txt
+    $ pip install -r requirements.txt
 
 4. Create a branch for local development::
 
