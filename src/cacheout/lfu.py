@@ -8,7 +8,7 @@ from .cache import Cache
 
 class LFUCache(Cache):
     """The Least Frequently Used (LFU) cache is like :class:`.Cache` but uses a
-    least-recently-used eviction policy.
+    least-frequently-used eviction policy.
 
     The primary difference with :class:`.Cache` is that access to cache entries
     (i.e. calls to :meth:`get` and :meth:`set`) are tracked; each call to
