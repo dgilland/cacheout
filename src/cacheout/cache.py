@@ -3,6 +3,7 @@ The cache module provides the :class:`Cache` class which is used as the base for
 other cache types.
 """
 
+import asyncio
 from collections import OrderedDict
 from decimal import Decimal
 import fnmatch
@@ -524,12 +525,14 @@ class Cache(object):
 
     def memoize(self, *, ttl=None, typed=False):
         """
-        Decorator that wraps a function with a memoizing callable. Each return value
-        from the function will be cached using the function arguments as the cache key.
-        The cache object can be accessed at ``<function>.cache``. The uncached version
-        (i.e. the original function) can be accessed at ``<function>.uncached``. Each
-        return value from the function will be cached using the function arguments as
-        the cache key.
+        Decorator that wraps a function with a memoizing callable and works
+        on both synchronous and asynchronous functions.
+
+        Each return value from the function will be cached using the function arguments
+        as the cache key. The cache object can be accessed at ``<function>.cache``. The
+        uncached version (i.e. the original function) can be accessed at
+        ``<function>.uncached``. Each return value from the function will be cached
+        using the function arguments as the cache key.
 
         Keyword Args:
             ttl (int, optional): TTL value. Defaults to ``None`` which uses :attr:`ttl`.
@@ -543,18 +546,36 @@ class Cache(object):
             prefix = "{}.{}:".format(func.__module__, func.__name__)
             argspec = inspect.getfullargspec(func)
 
-            @wraps(func)
-            def decorated(*args, **kwargs):
-                key = _make_memoize_key(
-                    func, args, kwargs, marker, typed, argspec, prefix
-                )
-                value = self.get(key, default=marker)
+            if asyncio.iscoroutinefunction(func):
 
-                if value is marker:
-                    value = func(*args, **kwargs)
-                    self.set(key, value, ttl=ttl)
+                @wraps(func)
+                @asyncio.coroutine
+                def decorated(*args, **kwargs):
+                    key = _make_memoize_key(
+                        func, args, kwargs, marker, typed, argspec, prefix
+                    )
+                    value = self.get(key, default=marker)
 
-                return value
+                    if value is marker:
+                        value = yield from func(*args, **kwargs)
+                        self.set(key, value, ttl=ttl)
+
+                    return value
+
+            else:
+
+                @wraps(func)
+                def decorated(*args, **kwargs):
+                    key = _make_memoize_key(
+                        func, args, kwargs, marker, typed, argspec, prefix
+                    )
+                    value = self.get(key, default=marker)
+
+                    if value is marker:
+                        value = func(*args, **kwargs)
+                        self.set(key, value, ttl=ttl)
+
+                    return value
 
             decorated.cache = self
             decorated.uncached = func

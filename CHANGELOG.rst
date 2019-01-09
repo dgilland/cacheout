@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+- Fix issue with asyncio support in memoization decorators that caused a ``RuntimeError: await wasn't used with future`` when certain types of async functions were used inside the memoized function.
+
+
 v0.11.0 (2018-10-19)
 --------------------
 

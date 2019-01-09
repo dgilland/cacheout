@@ -14,7 +14,8 @@ from .rr import RRCache
 
 def memoize(maxsize=128, ttl=0, typed=False):
     """
-    Decorator that wraps a function with a memoizing callable.
+    Decorator that wraps a function with a memoizing callable and works on both
+    synchronous and asynchronous functions.
 
     A cache object will be created for each memoized function using :class:`.Cache` and
     the arguments provided to this decorator followed by an immediate call to

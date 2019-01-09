@@ -1,3 +1,4 @@
+import asyncio
 import re
 
 import pytest
@@ -446,6 +447,63 @@ def test_cache_memoize_func_attrs(cache):
 
     _, markz = memoized.uncached(value)
     assert markz == marker
+
+
+def test_cache_memoize_async(cache):
+    """Test that cache.memoize() can decorate async functions."""
+    loop = asyncio.get_event_loop()
+    marker = 1
+
+    @cache.memoize()
+    @asyncio.coroutine
+    def func(a):
+        return (a, marker)
+
+    assert asyncio.iscoroutinefunction(func)
+
+    assert len(cache) == 0
+
+    result = loop.run_until_complete(func("a"))
+
+    assert result == ("a", 1)
+    assert len(cache) == 1
+    assert list(cache.values())[0] == ("a", 1)
+
+    marker += 1
+    result = loop.run_until_complete(func("a"))
+
+    assert result == ("a", 1)
+    assert len(cache) == 1
+
+    result = loop.run_until_complete(func("b"))
+
+    assert result == ("b", 2)
+    assert len(cache) == 2
+
+
+def test_cache_memoize_async_runtime_error_regression(cache):
+    """
+    Test that cache.memoize() doesn't raise RuntimeError.
+    future".
+
+    Note:
+        There's something different about asyncio.create_subprocess_exec() that caused
+        a previous implementation of cache.memoize() to fail with "RuntimeError: await
+        wasn't used with future".
+    """
+    loop = asyncio.get_event_loop()
+
+    @cache.memoize()
+    @asyncio.coroutine
+    def func():
+        # NOTE: There's something different about create_subprocess_exec() that caused
+        # a previous implementation of cache.memoize() to fail with
+        # "RuntimeError: await wasn't used with future". So we're specifically testing
+        # against that
+        proc = yield from asyncio.create_subprocess_exec("python", "--version")
+        proc.terminate()
+
+    loop.run_until_complete(func())
 
 
 def test_cache_size(cache):
