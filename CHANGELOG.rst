@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+- Fix bug in ``LFUCache`` that would result cache growing beyond ``maxsize`` limit.
+
+
 v0.11.1 (2019-01-09)
 --------------------
 
