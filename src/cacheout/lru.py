@@ -17,11 +17,7 @@ class LRUCache(Cache):
     def _get(self, key, default=None):
         value = super()._get(key, default=default)
 
-        try:
+        if key in self._cache:
             self._cache.move_to_end(key)
-        except KeyError:
-            # KeyError occurs when cache key doesn't exist which happens when
-            # default value is used.
-            pass
 
         return value
