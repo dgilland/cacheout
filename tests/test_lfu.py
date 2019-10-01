@@ -84,3 +84,21 @@ def test_lfu_clear(cache):
     cache.set(3, 3)
 
     assert 1 not in cache
+
+
+def test_lfu_maxsize_violation_regression():
+    """Test that LFUCache doesn't allow maxsize violation."""
+    cache = LFUCache(maxsize=4)
+
+    for _ in range(4):
+        cache.add(1, 1)
+        cache.add(2, 1)
+
+    for _ in range(3):
+        cache.add(3, 1)
+        cache.add(4, 1)
+
+    cache.add(5, 1)
+    cache.add(6, 1)
+
+    assert list(cache.keys()) == [1, 2, 4, 6]

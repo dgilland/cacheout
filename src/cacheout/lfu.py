@@ -37,7 +37,8 @@ class LFUCache(Cache):
 
     def _get(self, key, default=None):
         value = super()._get(key, default=default)
-        self._touch(key)
+        if key in self:
+            self._touch(key)
         return value
 
     def _set(self, key, value, ttl=None):
