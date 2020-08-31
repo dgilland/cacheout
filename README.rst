@@ -97,7 +97,7 @@ Get a default value when cache key isn't set:
 
 .. code-block:: python
 
-    assertcache.get(2) is None
+    assert cache.get(2) is None
     assert cache.get(2, default=False) is False
     assert 2 not in cache
 
