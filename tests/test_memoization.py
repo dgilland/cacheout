@@ -10,14 +10,15 @@ from cacheout import (
     LRUCache,
     MRUCache,
     RRCache,
-    memoize,
     fifo_memoize,
     lfu_memoize,
     lifo_memoize,
     lru_memoize,
+    memoize,
     mru_memoize,
     rr_memoize,
 )
+
 
 parametrize = pytest.mark.parametrize
 
@@ -46,7 +47,7 @@ def test_memoize_cache(memoizer, cache_class):
     with mock.patch(patch) as mocked:
 
         @memoizer()
-        def func():
+        def func2():
             pass
 
         assert mocked.called

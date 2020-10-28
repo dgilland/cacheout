@@ -114,9 +114,7 @@ def test_cache_add_many(cache):
 
 
 def test_cache_get(cache):
-    """Test that cache.get() returns a cache key value or a default value if
-    missing.
-    """
+    """Test that cache.get() returns a cache key value or a default value if missing."""
     key, value = ("key", "value")
 
     assert cache.get(key) is None
@@ -155,10 +153,7 @@ def test_cache_default_callable():
 
 
 def test_cache_get_default_callable(cache):
-    """
-    Test that cache.get() uses a default function when value is not found to set cache
-    keys.
-    """
+    """Test that cache.get() uses a default function when value is not found to set cache keys."""
 
     def default(key):
         return key
@@ -196,10 +191,7 @@ def test_cache_get_default_callable(cache):
     ],
 )
 def test_cache_get_many(cache, items, iteratee, expected):
-    """
-    Test that cache.get_many() returns multiple cache key/values filtered by an
-    iteratee.
-    """
+    """Test that cache.get_many() returns multiple cache key/values filtered by an iteratee."""
     cache.set_many(items)
     assert cache.get_many(iteratee) == expected
 
@@ -248,10 +240,7 @@ def test_cache_delete(cache):
     ],
 )
 def test_cache_delete_many(cache, items, iteratee, expected):
-    """
-    Test that cache.delete_many() deletes multiple cache key/values filtered by an
-    iteratee.
-    """
+    """Test that cache.delete_many() deletes multiple cache key/values filtered by an iteratee."""
     cache.set_many(items)
 
     cache.delete_many(iteratee)
@@ -311,10 +300,8 @@ def test_cache_evict(cache):
 
 
 def test_cache_memoize(cache):
-    """
-    Test that cache.memoize() caches the return value of a function using a key based on
-    function arguments used.
-    """
+    """Test that cache.memoize() caches the return value of a function using a key based on function
+    arguments used."""
     marker = 1
 
     @cache.memoize()
@@ -337,9 +324,7 @@ def test_cache_memoize(cache):
 
 
 def test_cache_memoize_typed(cache):
-    """
-    Test that cache.memoize() can factor in argument types as part of the cache key.
-    """
+    """Test that cache.memoize() can factor in argument types as part of the cache key."""
 
     @cache.memoize()
     def untyped(a):
@@ -371,10 +356,8 @@ def test_cache_memoize_typed(cache):
 
 
 def test_cache_memoize_arg_normalization(cache):
-    """
-    Test taht cache.memoize() normalizes argument ordering for positional and keyword
-    arguments.
-    """
+    """Test taht cache.memoize() normalizes argument ordering for positional and keyword
+    arguments."""
 
     @cache.memoize(typed=True)
     def func(a, b, c, d, **kargs):
@@ -484,25 +467,24 @@ def test_cache_memoize_async(cache):
 def test_cache_memoize_async_runtime_error_regression(cache):
     """
     Test that cache.memoize() doesn't raise RuntimeError.
-    future".
 
     Note:
         There's something different about asyncio.create_subprocess_exec() that caused
         a previous implementation of cache.memoize() to fail with "RuntimeError: await
         wasn't used with future".
     """
-    loop = asyncio.get_event_loop()
 
     @cache.memoize()
     @asyncio.coroutine
     def func():
         # NOTE: There's something different about create_subprocess_exec() that caused
-        # a previous implementation of cache.memoize() to fail with
-        # "RuntimeError: await wasn't used with future". So we're specifically testing
-        # against that
+        # a previous implementation of cache.memoize() to fail with "RuntimeError: await wasn't used
+        # with future". So we're specifically testing against that.
+        # pylint: disable=not-an-iterable
         proc = yield from asyncio.create_subprocess_exec("python", "--version")
         proc.terminate()
 
+    loop = asyncio.get_event_loop()
     loop.run_until_complete(func())
 
 

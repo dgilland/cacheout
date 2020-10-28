@@ -1,7 +1,5 @@
-"""
-The memoization modules provides standalone memoiziation decorators that create an
-independent cache object for each decorated function.
-"""
+"""The memoization modules provides standalone memoiziation decorators that create an independent
+cache object for each decorated function."""
 
 from .cache import Cache
 from .fifo import FIFOCache
@@ -14,23 +12,22 @@ from .rr import RRCache
 
 def memoize(maxsize=128, ttl=0, typed=False):
     """
-    Decorator that wraps a function with a memoizing callable and works on both
-    synchronous and asynchronous functions.
+    Decorator that wraps a function with a memoizing callable and works on both synchronous and
+    asynchronous functions.
 
-    A cache object will be created for each memoized function using :class:`.Cache` and
-    the arguments provided to this decorator followed by an immediate call to
-    :meth:`.Cache.memoize` to wrap the function. The cache object can be accessed at
-    ``<function>.cache``. The uncached version (i.e. the original function) can be
-    accessed at ``<function>.uncached``. Each return value from the function will be
-    cached using the function arguments as the cache key.
+    A cache object will be created for each memoized function using :class:`.Cache` and the
+    arguments provided to this decorator followed by an immediate call to :meth:`.Cache.memoize` to
+    wrap the function. The cache object can be accessed at ``<function>.cache``. The uncached
+    version (i.e. the original function) can be accessed at ``<function>.uncached``. Each return
+    value from the function will be cached using the function arguments as the cache key.
 
     Args:
         maxsize (int, optional): Maximum size of cache dictionary. Defaults to ``128``.
-        ttl (int, optional): Default TTL for all cache entries. Defaults to ``0`` which
-            means that entries do not expire.
-        typed (bool, optional): Whether to cache arguments of a different type
-            separately. For example, ``<function>(1)`` and ``<function>(1.0)`` would be
-            treated differently. Defaults to ``False``.
+        ttl (int, optional): Default TTL for all cache entries. Defaults to ``0`` which means that
+            entries do not expire.
+        typed (bool, optional): Whether to cache arguments of a different type separately. For
+            example, ``<function>(1)`` and ``<function>(1.0)`` would be treated differently.
+            Defaults to ``False``.
     """
     return Cache(maxsize=maxsize, ttl=ttl).memoize(typed=typed)
 

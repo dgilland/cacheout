@@ -1,6 +1,4 @@
-"""
-The manager module provides the :class:`CacheManager` class.
-"""
+"""The manager module provides the :class:`CacheManager` class."""
 
 from threading import RLock
 
@@ -9,47 +7,44 @@ from .cache import Cache
 
 class CacheManager(object):
     """
-    The cache manager provides an interface for accessing multiple caches indexed by
-    name.
+    The cache manager provides an interface for accessing multiple caches indexed by name.
 
-    Each named cache is a separate cache instance with its own configuration. Named
-    caches can be configured during initialization or later using the :meth:`setup`
-    (bulk configuration) or :meth:`configure` (individual configuration) methods.
+    Each named cache is a separate cache instance with its own configuration. Named caches can be
+    configured during initialization or later using the :meth:`setup` (bulk configuration) or
+    :meth:`configure` (individual configuration) methods.
 
     Example:
 
         >>> # Configure bulk caches during initialization
-        >>> caches = CacheManager({'A': {'maxsize': 100},
-        ...                        'B': {'ttl': 90}})
-        >>> assert 'A' in caches
-        >>> assert 'B' in caches
+        >>> caches = CacheManager({"A": {"maxsize": 100}, "B": {"ttl": 90}})
+        >>> assert "A" in caches
+        >>> assert "B" in caches
 
         >>> # Replace bulk caches after initializtion
         >>> class MyCache(Cache): pass
-        >>> caches.setup({'C': {'cache_class': MyCache}, 'D': {}})
-        >>> assert 'A' not in caches
-        >>> assert 'B' not in caches
-        >>> assert 'C' in caches
-        >>> assert isinstance(caches['C'], MyCache)
-        >>> assert 'D' in caches
-        >>> assert isinstance(caches['D'], Cache)
+        >>> caches.setup({"C": {"cache_class": MyCache}, "D": {}})
+        >>> assert "A" not in caches
+        >>> assert "B" not in caches
+        >>> assert "C" in caches
+        >>> assert isinstance(caches["C"], MyCache)
+        >>> assert "D" in caches
+        >>> assert isinstance(caches["D"], Cache)
 
         >>> # Configure individual cache after initializtaion
-        >>> caches.configure('E', **{'cache_class': MyCache})
-        >>> assert isinstance(caches['E'], MyCache)
+        >>> caches.configure("E", **{"cache_class": MyCache})
+        >>> assert isinstance(caches["E"], MyCache)
 
         >>> # Replace a cache entity
-        >>> caches.register('E', Cache())
-        >>> assert isinstance(caches['E'], Cache)
+        >>> caches.register("E", Cache())
+        >>> assert isinstance(caches["E"], Cache)
 
         >>> # Access caches
-        >>> caches['C'].set('key1', 'value1')
-        >>> caches['D'].set('key2', 'value2')
+        >>> caches["C"].set("key1", "value1")
+        >>> caches["D"].set("key2", "value2")
 
     Args:
-        settings (dict, optional): A ``dict`` indexed by each cache name that should be
-            created and configured. Defaults to ``None`` which doesn't configure
-            anything.
+        settings (dict, optional): A ``dict`` indexed by each cache name that should be created and
+            configured. Defaults to ``None`` which doesn't configure anything.
         cache_class (callable, optional): A factory function used when creating a cache.
     """
 
@@ -63,17 +58,17 @@ class CacheManager(object):
         """
         Set up named cache instances using configuration defined in `settings`.
 
-        The `settings` should contain key/values corresponding to the cache name and its
-        cache options, respectively. Named caches are then accessible using index access
-        on the cache handler object.
+        The `settings` should contain key/values corresponding to the cache name and its cache
+        options, respectively. Named caches are then accessible using index access on the cache
+        handler object.
 
         Warning:
-            Calling this method will destroy **all** previously configured named caches
-            and replace them with what is defined in `settings`.
+            Calling this method will destroy **all** previously configured named caches and replace
+            them with what is defined in `settings`.
 
         Args:
-            settings (dict, optional): A ``dict`` indexed by each cache name that
-                contains the options for each named cache.
+            settings (dict, optional): A ``dict`` indexed by each cache name that contains the
+                options for each named cache.
         """
         self._caches = {}
 
@@ -116,8 +111,8 @@ class CacheManager(object):
             return self._caches[name]
         except KeyError:
             raise KeyError(
-                "Cache not configured for {name}. Use "
-                '"configure({name!r}, **options)" to configure it.'.format(name=name)
+                "Cache not configured for {name}. Use 'configure({name!r}, **options)' to configure"
+                " it.".format(name=name)
             )
 
     def __iter__(self):

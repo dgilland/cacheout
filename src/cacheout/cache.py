@@ -1,7 +1,5 @@
-"""
-The cache module provides the :class:`Cache` class which is used as the base for all
-other cache types.
-"""
+"""The cache module provides the :class:`Cache` class which is used as the base for all other cache
+types."""
 
 import asyncio
 from collections import OrderedDict
@@ -13,6 +11,7 @@ import inspect
 import re
 from threading import RLock
 import time
+
 
 try:
     from re import Pattern
@@ -32,24 +31,23 @@ class Cache(object):
     - Per cache entry TTL
     - TTL first/non-TTL FIFO cache eviction policy
 
-    Cache entries are stored in an ``OrderedDict`` so that key ordering based
-    on the cache type can be maintained without the need for additional
-    list(s). Essentially, the key order of the ``OrderedDict`` is treated as an
-    "eviction queue" with the convention that entries at the beginning of the
-    queue are "newer" while the entries at the end are "older" (the exact
-    meaning of "newer" and "older" will vary between different cache types).
-    When cache entries need to be evicted, expired entries are removed first
-    followed by the "older" entries (i.e. the ones at the end of the queue).
+    Cache entries are stored in an ``OrderedDict`` so that key ordering based on the cache type can
+    be maintained without the need for additional list(s). Essentially, the key order of the
+    ``OrderedDict`` is treated as an "eviction queue" with the convention that entries at the
+    beginning of the queue are "newer" while the entries at the end are "older" (the exact meaning
+    of "newer" and "older" will vary between different cache types). When cache entries need to be
+    evicted, expired entries are removed first followed by the "older" entries (i.e. the ones at the
+    end of the queue).
 
     Attributes:
         maxsize (int, optional): Maximum size of cache dictionary. Defaults to ``256``.
-        ttl (int, optional): Default TTL for all cache entries. Defaults to ``0`` which
-            means that entries do not expire.
-        timer (callable, optional): Timer function to use to calculate TTL expiration.
-            Defaults to ``time.time``.
-        default (mixed, optional): Default value or function to use in :meth:`get` when
-            key is not found. If callable, it will be passed a single argument, ``key``,
-            and its return value will be set for that cache key.
+        ttl (int, optional): Default TTL for all cache entries. Defaults to ``0`` which means that
+            entries do not expire.
+        timer (callable, optional): Timer function to use to calculate TTL expiration. Defaults to
+            ``time.time``.
+        default (mixed, optional): Default value or function to use in :meth:`get` when key is not
+            found. If callable, it will be passed a single argument, ``key``, and its return value
+            will be set for that cache key.
     """
 
     def __init__(self, maxsize=None, ttl=None, timer=None, default=None):
@@ -72,8 +70,9 @@ class Cache(object):
 
     def configure(self, maxsize=None, ttl=None, timer=None, default=None):
         """
-        Configure cache settings. This method is meant to support runtime level
-        configurations for global level cache objects.
+        Configure cache settings.
+
+        This method is meant to support runtime level configurations for global level cache objects.
         """
         if maxsize is not None:
             if not isinstance(maxsize, int):
@@ -157,8 +156,8 @@ class Cache(object):
         Return a ``dict_items`` view of cache items.
 
         Warning:
-            Returned data is copied from the cache object, but any modifications to
-            mutable values will modify this cache object's data.
+            Returned data is copied from the cache object, but any modifications to mutable values
+            will modify this cache object's data.
 
         Returns:
             dict_items
@@ -205,16 +204,15 @@ class Cache(object):
 
     def get(self, key, default=None):
         """
-        Return the cache value for `key` or `default` or ``missing(key)`` if it doesn't
-        exist or has expired.
+        Return the cache value for `key` or `default` or ``missing(key)`` if it doesn't exist or has
+        expired.
 
         Args:
             key (mixed): Cache key.
-            default (mixed, optional): Value to return if `key` doesn't exist. If any
-                value other than ``None``, then it will take precendence over
-                :attr:`missing` and be used as the return value. If `default` is
-                callable, it will function like :attr:`missing` and its return value
-                will be set for the cache `key`. Defaults to ``None``.
+            default (mixed, optional): Value to return if `key` doesn't exist. If any value other
+                than ``None``, then it will take precendence over :attr:`missing` and be used as the
+                return value. If `default` is callable, it will function like :attr:`missing` and
+                its return value will be set for the cache `key`. Defaults to ``None``.
 
         Returns:
             mixed: The cached value.
@@ -243,8 +241,8 @@ class Cache(object):
 
     def get_many(self, iteratee, default=None):
         """
-        Return many cache values as a ``dict`` of key/value pairs filtered by an
-        `iteratee` that can be one of:
+        Return many cache values as a ``dict`` of key/value pairs filtered by an `iteratee` that can
+        be one of:
 
         - ``list`` - List of cache keys.
         - ``str`` - Search string that supports Unix shell-style wildcards.
@@ -254,21 +252,18 @@ class Cache(object):
 
         Args:
             iteratee (list|str|Pattern|callable): Iteratee to filter by.
-            default (mixed, optional): Value to return if key doesn't exist. Defaults to
-                ``None``.
+            default (mixed, optional): Value to return if key doesn't exist. Defaults to ``None``.
 
         Returns:
             dict
         """
         with self._lock:
-            return {
-                key: self.get(key, default=default) for key in self._filter(iteratee)
-            }
+            return {key: self.get(key, default=default) for key in self._filter(iteratee)}
 
     def add(self, key, value, ttl=None):
         """
-        Add cache key/value if it doesn't already exist. Essentially, this method
-        ignores keys that exist which leaves the original TTL in tact.
+        Add cache key/value if it doesn't already exist. Essentially, this method ignores keys that
+        exist which leaves the original TTL in tact.
 
         Note:
             Cache key must be hashable.
@@ -298,9 +293,9 @@ class Cache(object):
 
     def set(self, key, value, ttl=None):
         """
-        Set cache key/value and replace any previously set cache key. If the cache key
-        previous existed, setting it will move it to the end of the cache stack which
-        means it would be evicted last.
+        Set cache key/value and replace any previously set cache key. If the cache key previous
+        existed, setting it will move it to the end of the cache stack which means it would be
+        evicted last.
 
         Note:
             Cache key must be hashable.
@@ -420,9 +415,8 @@ class Cache(object):
 
         Args:
             key (mixed): Cache key.
-            expires_on (float, optional): Timestamp of when the key is considered
-                expired. Defaults to ``None`` which uses the current value returned from
-                :meth:`timer`.
+            expires_on (float, optional): Timestamp of when the key is considered expired. Defaults
+                to ``None`` which uses the current value returned from :meth:`timer`.
 
         Returns:
             bool
@@ -452,9 +446,9 @@ class Cache(object):
         - First, remove **all** expired entries.
         - Then, remove non-TTL entries using the cache replacement policy.
 
-        When removing non-TTL entries, this method will only remove the minimum number
-        of entries to reduce the number of entries below :attr:`maxsize`. If
-        :attr:`maxsize` is ``0``, then only expired entries will be removed.
+        When removing non-TTL entries, this method will only remove the minimum number of entries to
+        reduce the number of entries below :attr:`maxsize`. If :attr:`maxsize` is ``0``, then only
+        expired entries will be removed.
 
         Returns:
             int: Number of cache entries evicted.
@@ -476,9 +470,9 @@ class Cache(object):
 
     def popitem(self):
         """
-        Delete and return next cache item, ``(key, value)``, based on cache replacement
-        policy while ignoring expiration times (i.e. the selection of the item to pop is
-        based soley on the cache key ordering).
+        Delete and return next cache item, ``(key, value)``, based on cache replacement policy while
+        ignoring expiration times (i.e. the selection of the item to pop is based soley on the cache
+        key ordering).
 
         Returns:
             tuple: Two-element tuple of deleted cache ``(key, value)``.
@@ -510,12 +504,11 @@ class Cache(object):
         elif callable(iteratee):
             filter_by = iteratee
         else:
-            # We're assuming that iteratee is now an iterable that we want to filter
-            # cache keys by. We can optimize the filtering by making the filter target
-            # be the list of keys and checking whether those keys are in the cache. I.e.
-            # we'll iterate over the iteratee keys can check if the key is in the cache
-            # as opposed to iterating over the cache and checking if a key is in
-            # iteratee keys.
+            # We're assuming that iteratee is now an iterable that we want to filter cache keys by.
+            # We can optimize the filtering by making the filter target be the list of keys and
+            # checking whether those keys are in the cache. I.e. we'll iterate over the iteratee
+            # keys can check if the key is in the cache as opposed to iterating over the cache and
+            # checking if a key is in iteratee keys.
             target = iteratee
 
             def filter_by(key):
@@ -525,20 +518,19 @@ class Cache(object):
 
     def memoize(self, *, ttl=None, typed=False):
         """
-        Decorator that wraps a function with a memoizing callable and works
-        on both synchronous and asynchronous functions.
+        Decorator that wraps a function with a memoizing callable and works on both synchronous and
+        asynchronous functions.
 
-        Each return value from the function will be cached using the function arguments
-        as the cache key. The cache object can be accessed at ``<function>.cache``. The
-        uncached version (i.e. the original function) can be accessed at
-        ``<function>.uncached``. Each return value from the function will be cached
-        using the function arguments as the cache key.
+        Each return value from the function will be cached using the function arguments as the cache
+        key. The cache object can be accessed at ``<function>.cache``. The uncached version (i.e.
+        the original function) can be accessed at ``<function>.uncached``. Each return value from
+        the function will be cached using the function arguments as the cache key.
 
         Keyword Args:
             ttl (int, optional): TTL value. Defaults to ``None`` which uses :attr:`ttl`.
-            typed (bool, optional): Whether to cache arguments of a different type
-                separately. For example, ``<function>(1)`` and ``<function>(1.0)`` would
-                be treated differently. Defaults to ``False``.
+            typed (bool, optional): Whether to cache arguments of a different type separately. For
+                example, ``<function>(1)`` and ``<function>(1.0)`` would be treated differently.
+                Defaults to ``False``.
         """
         marker = (object(),)
 
@@ -551,9 +543,7 @@ class Cache(object):
                 @wraps(func)
                 @asyncio.coroutine
                 def decorated(*args, **kwargs):
-                    key = _make_memoize_key(
-                        func, args, kwargs, marker, typed, argspec, prefix
-                    )
+                    key = _make_memoize_key(func, args, kwargs, marker, typed, argspec, prefix)
                     value = self.get(key, default=marker)
 
                     if value is marker:
@@ -566,9 +556,7 @@ class Cache(object):
 
                 @wraps(func)
                 def decorated(*args, **kwargs):
-                    key = _make_memoize_key(
-                        func, args, kwargs, marker, typed, argspec, prefix
-                    )
+                    key = _make_memoize_key(func, args, kwargs, marker, typed, argspec, prefix)
                     value = self.get(key, default=marker)
 
                     if value is marker:
@@ -589,10 +577,9 @@ def _make_memoize_key(func, args, kwargs, marker, typed, argspec, prefix):
     kwargs = kwargs.copy()
     key_args = (func,)
 
-    # Normalize args by moving positional arguments passed in as keyword arguments from
-    # kwargs into args. This is so functions like foo(a, b, c) called with
-    # foo(1, b=2, c=3) and foo(1, 2, 3) and foo(1, 2, c=3) will all have the same cache
-    # key.
+    # Normalize args by moving positional arguments passed in as keyword arguments from kwargs into
+    # args. This is so functions like foo(a, b, c) called with foo(1, b=2, c=3) and foo(1, 2, 3) and
+    # foo(1, 2, c=3) will all have the same cache key.
     if kwargs:
         for i, arg in enumerate(argspec.args):
             if arg in kwargs:
@@ -602,8 +589,8 @@ def _make_memoize_key(func, args, kwargs, marker, typed, argspec, prefix):
         key_args += args
 
     if kwargs:
-        # Separate args and kwargs with marker to avoid ambiguous cases where args
-        # provided might look like some other args+kwargs combo.
+        # Separate args and kwargs with marker to avoid ambiguous cases where args provided might
+        # look like some other args+kwargs combo.
         key_args += marker
         key_args += tuple(sorted(kwargs.items()))
 
@@ -614,17 +601,15 @@ def _make_memoize_key(func, args, kwargs, marker, typed, argspec, prefix):
         key_args += tuple(type(val) for _, val in sorted(kwargs.items()))
 
     # Hash everything in key_args and concatenate into a single byte string.
-    raw_key = b"".join(
-        map(lambda v: str(v).encode(), (_hash_value(arg) for arg in key_args))
-    )
+    raw_key = b"".join(map(lambda v: str(v).encode(), (_hash_value(arg) for arg in key_args)))
 
     # Combine prefix with md5 hash of raw key so that keys are normalized in length.
     return prefix + hashlib.md5(raw_key).hexdigest()
 
 
 def _hash_value(value):
-    # Prefer to hash value based on Python's hash() function but fallback to repr() if
-    # it's unhashable.
+    # Prefer to hash value based on Python's hash() function but fallback to repr() if it's
+    # unhashable.
     try:
         return hash(value)
     except TypeError:

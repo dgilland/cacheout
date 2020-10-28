@@ -6,8 +6,7 @@ requires = [
 
 
 [tool.black]
-line-length = 88
-target-version = ["py36", "py37", "py38"]
+line-length = 100
 include = '\.pyi?$'
 exclude = '''
 /(
@@ -19,6 +18,5 @@ exclude = '''
   | _build
   | build
   | dist
-  | tests/python_projects
 )/
 '''
