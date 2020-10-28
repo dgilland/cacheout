@@ -438,8 +438,7 @@ def test_cache_memoize_async(cache):
     marker = 1
 
     @cache.memoize()
-    @asyncio.coroutine
-    def func(a):
+    async def func(a):
         return (a, marker)
 
     assert asyncio.iscoroutinefunction(func)
@@ -475,13 +474,11 @@ def test_cache_memoize_async_runtime_error_regression(cache):
     """
 
     @cache.memoize()
-    @asyncio.coroutine
-    def func():
+    async def func():
         # NOTE: There's something different about create_subprocess_exec() that caused
         # a previous implementation of cache.memoize() to fail with "RuntimeError: await wasn't used
         # with future". So we're specifically testing against that.
-        # pylint: disable=not-an-iterable
-        proc = yield from asyncio.create_subprocess_exec("python", "--version")
+        proc = await asyncio.create_subprocess_exec("python", "--version")
         proc.terminate()
 
     loop = asyncio.get_event_loop()

@@ -541,13 +541,12 @@ class Cache(object):
             if asyncio.iscoroutinefunction(func):
 
                 @wraps(func)
-                @asyncio.coroutine
-                def decorated(*args, **kwargs):
+                async def decorated(*args, **kwargs):
                     key = _make_memoize_key(func, args, kwargs, marker, typed, argspec, prefix)
                     value = self.get(key, default=marker)
 
                     if value is marker:
-                        value = yield from func(*args, **kwargs)
+                        value = await func(*args, **kwargs)
                         self.set(key, value, ttl=ttl)
 
                     return value
