@@ -18,6 +18,7 @@ Guide
     rr
     memoization
     manager
+    devguide
 
 
 Project Info
