@@ -8,8 +8,8 @@ All tasks can be executed from this file's directory using:
 Where <task> is a function defined below with the @task decorator.
 """
 
-import os
 from functools import partial
+import os
 
 from invoke import Exit, UnexpectedExit, run as _run, task
 
