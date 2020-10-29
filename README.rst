@@ -1,7 +1,7 @@
 cacheout
 ********
 
-|version| |travis| |coveralls| |license|
+|version| |build| |coveralls| |license|
 
 
 A caching library for Python.
@@ -283,8 +283,8 @@ For more details, see the full documentation at https://cacheout.readthedocs.io.
 .. |version| image:: https://img.shields.io/pypi/v/cacheout.svg?style=flat-square
     :target: https://pypi.python.org/pypi/cacheout/
 
-.. |travis| image:: https://img.shields.io/travis/dgilland/cacheout/master.svg?style=flat-square
-    :target: https://travis-ci.org/dgilland/cacheout
+.. |build| image:: https://img.shields.io/github/workflow/status/dgilland/cacheout/Main/master?style=flat-square
+    :target: https://github.com/dgilland/cacheout/actions
 
 .. |coveralls| image:: https://img.shields.io/coveralls/dgilland/cacheout/master.svg?style=flat-square
     :target: https://coveralls.io/r/dgilland/cacheout
