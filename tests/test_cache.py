@@ -360,10 +360,10 @@ def test_cache_memoize_arg_normalization(cache):
     arguments."""
 
     @cache.memoize(typed=True)
-    def func(a, b, c, d, **kargs):
+    def func(a, b, c, d, **kwargs):
         return (a, b, c, d)
 
-    for args, kargs in (
+    for args, kwargs in (
         ((1, 2, 3, 4), {"e": 5}),
         ((1, 2, 3), {"d": 4, "e": 5}),
         ((1, 2), {"c": 3, "d": 4, "e": 5}),
@@ -371,7 +371,7 @@ def test_cache_memoize_arg_normalization(cache):
         ((), {"a": 1, "b": 2, "c": 3, "d": 4, "e": 5}),
         ((), {"a": 1, "b": 2, "c": 3, "d": 4, "e": 5}),
     ):
-        func(*args, **kargs)
+        func(*args, **kwargs)
         assert len(cache) == 1
 
 
