@@ -13,7 +13,7 @@ Links
 - Project: https://github.com/dgilland/cacheout
 - Documentation: https://cacheout.readthedocs.io
 - PyPI: https://pypi.python.org/pypi/cacheout/
-- TravisCI: https://travis-ci.org/dgilland/cacheout
+- Github Actions: https://github.com/dgilland/cacheout/actions
 
 
 Features
