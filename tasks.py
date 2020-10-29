@@ -8,6 +8,7 @@ All tasks can be executed from this file's directory using:
 Where <task> is a function defined below with the @task decorator.
 """
 
+import os
 from functools import partial
 
 from invoke import Exit, UnexpectedExit, run as _run, task
@@ -94,6 +95,11 @@ def lint(ctx):
 @task(help={"args": "Override default pytest arguments"})
 def unit(ctx, args=f"--cov={PACKAGE_SOURCE} {TEST_TARGETS}"):
     """Run unit tests using pytest."""
+    tox_env_site_packages_dir = os.getenv("TOX_ENV_SITE_PACKAGES_DIR")
+    if tox_env_site_packages_dir:
+        # Re-path package source to match tox env so that we generate proper coverage report.
+        tox_env_package = os.path.join(tox_env_site_packages_dir, os.path.basename(PACKAGE_SOURCE))
+        args = args.replace(PACKAGE_SOURCE, tox_env_package)
     run(f"pytest {args}")
 
 
