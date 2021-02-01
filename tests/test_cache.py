@@ -340,15 +340,11 @@ def test_cache_memoize_typed(cache):
     assert len(cache) == 3
 
     untyped_keys = [
-        key
-        for key in cache.keys()
-        if key.startswith("{}.{}".format(untyped.__module__, untyped.__name__))
+        key for key in cache.keys() if key.startswith(f"{untyped.__module__}.{untyped.__name__}")
     ]
 
     typed_keys = [
-        key
-        for key in cache.keys()
-        if key.startswith("{}.{}".format(typed.__module__, typed.__name__))
+        key for key in cache.keys() if key.startswith(f"{typed.__module__}.{typed.__name__}")
     ]
 
     assert len(untyped_keys) == 1

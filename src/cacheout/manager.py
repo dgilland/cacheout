@@ -104,15 +104,15 @@ class CacheManager(object):
         self._caches[name] = cache
 
     def __repr__(self):
-        return "{}({})".format(self.__class__.__name__, sorted(self.cache_names()))
+        return f"{self.__class__.__name__}({sorted(self.cache_names())})"
 
     def __getitem__(self, name):
         try:
             return self._caches[name]
         except KeyError:
             raise KeyError(
-                "Cache not configured for {name}. Use 'configure({name!r}, **options)' to configure"
-                " it.".format(name=name)
+                f"Cache not configured for {name}. Use 'configure({name!r}, **options)' to"
+                " configure it."
             )
 
     def __iter__(self):

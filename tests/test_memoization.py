@@ -42,7 +42,7 @@ def test_memoize_cache(memoizer, cache_class):
 
     assert isinstance(func.cache, cache_class)
 
-    patch = "cacheout.memoization.{}".format(cache_class.__name__)
+    patch = f"cacheout.memoization.{cache_class.__name__}"
 
     with mock.patch(patch) as mocked:
 

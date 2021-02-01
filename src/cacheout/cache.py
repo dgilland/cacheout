@@ -101,7 +101,7 @@ class Cache(object):
         self.default = default
 
     def __repr__(self):
-        return "{}({})".format(self.__class__.__name__, list(self.copy().items()))
+        return f"{self.__class__.__name__}({list(self.copy().items())})"
 
     def __len__(self):
         with self._lock:
@@ -535,7 +535,7 @@ class Cache(object):
         marker = (object(),)
 
         def decorator(func):
-            prefix = "{}.{}:".format(func.__module__, func.__name__)
+            prefix = f"{func.__module__}.{func.__name__}:"
             argspec = inspect.getfullargspec(func)
 
             if asyncio.iscoroutinefunction(func):
