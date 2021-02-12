@@ -72,9 +72,15 @@ def pylint(ctx):
 
 
 @task
+def mypy(ctx):
+    """Check code using mypy type checker."""
+    run(f"mypy {LINT_TARGETS}")
+
+
+@task
 def lint(ctx):
     """Run linters."""
-    linters = {"flake8": flake8, "pylint": pylint}
+    linters = {"flake8": flake8, "pylint": pylint, "mypy": mypy}
     failures = []
 
     for name, linter in linters.items():
@@ -94,7 +100,7 @@ def lint(ctx):
 
 
 @task(help={"args": "Override default pytest arguments"})
-def unit(ctx, args=f"{TEST_TARGETS} --cov={PACKAGE_NAME} --flake8 --pylint"):
+def unit(ctx, args=f"{TEST_TARGETS} --cov={PACKAGE_NAME} --flake8 --mypy --pylint"):
     """Run unit tests using pytest."""
     tox_env_site_packages_dir = os.getenv("TOX_ENV_SITE_PACKAGES_DIR")
     if tox_env_site_packages_dir:

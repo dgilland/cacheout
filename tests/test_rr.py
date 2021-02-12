@@ -10,7 +10,7 @@ random = SystemRandom()
 
 
 @pytest.fixture
-def cache():
+def cache() -> RRCache:
     _cache = RRCache(maxsize=10)
     for n in range(_cache.maxsize):
         _cache.set(n, n)
@@ -18,11 +18,7 @@ def cache():
     return _cache
 
 
-def test_rr_random_eviction(cache):
-    """Test that RRCache randomly removes cache items."""
-
-
-def assert_keys_evicted_in_random_order(cache, keys):
+def assert_keys_evicted_in_random_order(cache: RRCache, keys: list):
     """Assert that cache keys are evicted in the same order as `keys`."""
     cache_keys = keys.copy()
     evicted_keys = []
@@ -40,7 +36,7 @@ def assert_keys_evicted_in_random_order(cache, keys):
     assert reversed(keys) != evicted_keys
 
 
-def test_rr_set_eviction(cache):
+def test_rr_set_eviction(cache: RRCache):
     """Test that RRCache evicts randomly set entries first."""
     keys = random.sample(list(cache.keys()), len(cache))
 
@@ -50,7 +46,7 @@ def test_rr_set_eviction(cache):
     assert_keys_evicted_in_random_order(cache, keys)
 
 
-def test_rr_get_eviction(cache):
+def test_rr_get_eviction(cache: RRCache):
     """Test that RRCache evicts randomly accessed entries first."""
     keys = random.sample(list(cache.keys()), len(cache))
 
@@ -60,7 +56,7 @@ def test_rr_get_eviction(cache):
     assert_keys_evicted_in_random_order(cache, keys)
 
 
-def test_rr_get_set_eviction(cache):
+def test_rr_get_set_eviction(cache: RRCache):
     """Test that RRCache evicts randomly set/accessed entries first."""
     all_keys = list(cache.keys())
     get_keys = random.sample(all_keys, len(cache) // 2)
@@ -80,7 +76,7 @@ def test_rr_get_set_eviction(cache):
     assert_keys_evicted_in_random_order(cache, keys)
 
 
-def test_rr_get(cache):
+def test_rr_get(cache: RRCache):
     """Test that RRCache.get() returns cached value."""
     for key, value in cache.items():
         assert cache.get(key) == value

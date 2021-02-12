@@ -10,7 +10,7 @@ random = SystemRandom()
 
 
 @pytest.fixture
-def cache():
+def cache() -> LRUCache:
     _cache = LRUCache(maxsize=10)
     for n in range(_cache.maxsize):
         _cache.set(n, n)
@@ -18,7 +18,7 @@ def cache():
     return _cache
 
 
-def assert_keys_evicted_in_order(cache, keys):
+def assert_keys_evicted_in_order(cache: LRUCache, keys: list):
     """Assert that cache keys are evicted in the same order as `keys`."""
     keys = keys.copy()
     for n in range(cache.maxsize, cache.maxsize * 2):
@@ -30,7 +30,7 @@ def assert_keys_evicted_in_order(cache, keys):
             assert key in cache
 
 
-def test_lru_set_eviction(cache):
+def test_lru_set_eviction(cache: LRUCache):
     """Test that LRUCache evicts least recently set entries first."""
     keys = random.sample(list(cache.keys()), len(cache))
 
@@ -40,7 +40,7 @@ def test_lru_set_eviction(cache):
     assert_keys_evicted_in_order(cache, keys)
 
 
-def test_lru_get_eviction(cache):
+def test_lru_get_eviction(cache: LRUCache):
     """Test that LRUCache evicts least recently accessed entries first."""
     keys = random.sample(list(cache.keys()), len(cache))
 
@@ -50,7 +50,7 @@ def test_lru_get_eviction(cache):
     assert_keys_evicted_in_order(cache, keys)
 
 
-def test_lru_get_set_eviction(cache):
+def test_lru_get_set_eviction(cache: LRUCache):
     """Test that LRUCache evicts least recently set/accessed entries first."""
     all_keys = list(cache.keys())
     get_keys = random.sample(all_keys, len(cache) // 2)
@@ -70,13 +70,13 @@ def test_lru_get_set_eviction(cache):
     assert_keys_evicted_in_order(cache, keys)
 
 
-def test_lru_get(cache):
+def test_lru_get(cache: LRUCache):
     """Test that LRUCache.get() returns cached value."""
     for key, value in cache.items():
         assert cache.get(key) == value
 
 
-def test_lru_get_default(cache):
+def test_lru_get_default(cache: LRUCache):
     """Test that LRUCache.get() returns a default value."""
     default = "bar"
     assert cache.get("foo", default=default) == default

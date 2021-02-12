@@ -1,5 +1,6 @@
 import asyncio
 import re
+import typing as t
 
 import pytest
 
@@ -9,23 +10,26 @@ from cacheout import Cache
 parametrize = pytest.mark.parametrize
 
 
-@pytest.fixture
-def timer():
-    def _timer():
-        return _timer.time
+class Timer:
+    def __init__(self):
+        self.time: t.Union[int, float] = 0
 
-    _timer.time = 0
-
-    return _timer
+    def __call__(self) -> t.Union[int, float]:
+        return self.time
 
 
 @pytest.fixture
-def cache(timer):
+def timer() -> Timer:
+    return Timer()
+
+
+@pytest.fixture
+def cache(timer) -> Cache:
     return Cache(timer=timer)
 
 
 @parametrize(
-    "arg,exc",
+    "args, exc",
     [
         ({"maxsize": -1}, ValueError),
         ({"maxsize": "1"}, TypeError),
@@ -34,20 +38,20 @@ def cache(timer):
         ({"timer": True}, TypeError),
     ],
 )
-def test_cache_init_validation(arg, exc):
+def test_cache_init_validation(args: dict, exc: t.Type[Exception]):
     """Test that exceptions are raised on bad argument values/types."""
     with pytest.raises(exc):
-        Cache(**arg)
+        Cache(**args)
 
 
-def test_cache_set(cache):
+def test_cache_set(cache: Cache):
     """Test that cache.set() sets cache key/value."""
     key, value = ("key", "value")
     cache.set(key, value)
     assert cache.get(key) == value
 
 
-def test_cache_set_ttl_default(cache, timer):
+def test_cache_set_ttl_default(cache: Cache, timer: Timer):
     """Test that cache.set() uses a default TTL if initialized with one."""
     default_ttl = 2
     cache.configure(ttl=default_ttl)
@@ -62,7 +66,7 @@ def test_cache_set_ttl_default(cache, timer):
     assert not cache.has("key")
 
 
-def test_cache_set_ttl_override(cache, timer):
+def test_cache_set_ttl_override(cache: Cache, timer: Timer):
     """Test that cache.set() can override the default TTL."""
     default_ttl = 1
     cache.configure(ttl=default_ttl)
@@ -78,7 +82,7 @@ def test_cache_set_ttl_override(cache, timer):
     assert not cache.has("key2")
 
 
-def test_cache_set_many(cache):
+def test_cache_set_many(cache: Cache):
     """Test that cache.set_many() sets multiple cache key/values."""
     items = {"a": 1, "b": 2, "c": 3}
     cache.set_many(items)
@@ -87,7 +91,7 @@ def test_cache_set_many(cache):
         assert cache.get(key) == value
 
 
-def test_cache_add(cache):
+def test_cache_add(cache: Cache):
     """Test that cache.add() sets a cache key but only if it doesn't exist."""
     key, value = ("key", "value")
     ttl = 2
@@ -104,7 +108,7 @@ def test_cache_add(cache):
     assert cache.expire_times()[key] == ttl + 1
 
 
-def test_cache_add_many(cache):
+def test_cache_add_many(cache: Cache):
     """Test that cache.add_many() adds multiple cache key/values."""
     items = {"a": 1, "b": 2, "c": 3}
     cache.add_many(items)
@@ -113,7 +117,7 @@ def test_cache_add_many(cache):
         assert cache.get(key) == value
 
 
-def test_cache_get(cache):
+def test_cache_get(cache: Cache):
     """Test that cache.get() returns a cache key value or a default value if missing."""
     key, value = ("key", "value")
 
@@ -152,7 +156,7 @@ def test_cache_default_callable():
     assert cache.get("key3", default=3) == 3
 
 
-def test_cache_get_default_callable(cache):
+def test_cache_get_default_callable(cache: Cache):
     """Test that cache.get() uses a default function when value is not found to set cache keys."""
 
     def default(key):
@@ -166,7 +170,7 @@ def test_cache_get_default_callable(cache):
 
 
 @parametrize(
-    "items,iteratee,expected",
+    "items, iteratee, expected",
     [
         (
             {"a_1": 1, "a_2": 2, "bcd": 3, "bed": 4, "12345": 5},
@@ -190,13 +194,15 @@ def test_cache_get_default_callable(cache):
         ),
     ],
 )
-def test_cache_get_many(cache, items, iteratee, expected):
+def test_cache_get_many(
+    cache: Cache, items: dict, iteratee: t.Union[list, str, t.Pattern, t.Callable], expected: dict
+):
     """Test that cache.get_many() returns multiple cache key/values filtered by an iteratee."""
     cache.set_many(items)
     assert cache.get_many(iteratee) == expected
 
 
-def test_cache_delete(cache):
+def test_cache_delete(cache: Cache):
     """Test that cache.delete() removes a cache key."""
     key, value = ("key", "value")
     cache.set(key, value)
@@ -239,7 +245,9 @@ def test_cache_delete(cache):
         ),
     ],
 )
-def test_cache_delete_many(cache, items, iteratee, expected):
+def test_cache_delete_many(
+    cache: Cache, items: dict, iteratee: t.Union[list, str, t.Pattern, t.Callable], expected: dict
+):
     """Test that cache.delete_many() deletes multiple cache key/values filtered by an iteratee."""
     cache.set_many(items)
 
@@ -248,7 +256,7 @@ def test_cache_delete_many(cache, items, iteratee, expected):
     assert dict(cache.items()) == expected
 
 
-def test_cache_delete_expired(cache, timer):
+def test_cache_delete_expired(cache: Cache, timer: Timer):
     """Test that cache.delete_expired() removes all expired keys."""
     ttl = 1
     ttl_keys = list(range(5))
@@ -280,7 +288,7 @@ def test_cache_delete_expired(cache, timer):
         assert cache.has(key)
 
 
-def test_cache_evict(cache):
+def test_cache_evict(cache: Cache):
     """Test that cache.evict() will remove cache keys to make room."""
     maxsize = 5
     cache.configure(maxsize=maxsize)
@@ -299,31 +307,31 @@ def test_cache_evict(cache):
         assert not cache.has(key)
 
 
-def test_cache_memoize(cache):
+def test_cache_memoize(cache: Cache):
     """Test that cache.memoize() caches the return value of a function using a key based on function
     arguments used."""
     marker = 1
 
     @cache.memoize()
     def func(a, b, c, d):
-        return ((a, b, c, d), marker)
+        return (a, b, c, d), marker
 
-    args, markx = func(1, 2, 3, 4)
+    args, mark_x = func(1, 2, 3, 4)
     assert args == (1, 2, 3, 4)
-    assert markx == marker
+    assert mark_x == marker
 
     marker += 1
-    args, marky = func(1, 2, 3, 4)
+    args, mark_y = func(1, 2, 3, 4)
     assert args == (1, 2, 3, 4)
-    assert marky != marker
-    assert marky == markx
+    assert mark_y != marker
+    assert mark_y == mark_x
 
-    args, markz = func(5, 6, 7, 8)
+    args, mark_z = func(5, 6, 7, 8)
     assert args == (5, 6, 7, 8)
-    assert markz == marker
+    assert mark_z == marker
 
 
-def test_cache_memoize_typed(cache):
+def test_cache_memoize_typed(cache: Cache):
     """Test that cache.memoize() can factor in argument types as part of the cache key."""
 
     @cache.memoize()
@@ -351,13 +359,13 @@ def test_cache_memoize_typed(cache):
     assert len(typed_keys) == 2
 
 
-def test_cache_memoize_arg_normalization(cache):
+def test_cache_memoize_arg_normalization(cache: Cache):
     """Test taht cache.memoize() normalizes argument ordering for positional and keyword
     arguments."""
 
     @cache.memoize(typed=True)
     def func(a, b, c, d, **kwargs):
-        return (a, b, c, d)
+        return a, b, c, d
 
     for args, kwargs in (
         ((1, 2, 3, 4), {"e": 5}),
@@ -371,7 +379,7 @@ def test_cache_memoize_arg_normalization(cache):
         assert len(cache) == 1
 
 
-def test_cache_memoize_ttl(cache, timer):
+def test_cache_memoize_ttl(cache: Cache, timer: Timer):
     """Test that cache.memoize() can set a TTL."""
     ttl1 = 5
     ttl2 = ttl1 + 1
@@ -402,40 +410,40 @@ def test_cache_memoize_ttl(cache, timer):
     assert not cache.has(key2)
 
 
-def test_cache_memoize_func_attrs(cache):
+def test_cache_memoize_func_attrs(cache: Cache):
     """Test that cache.memoize() adds attributes to decorated function."""
     marker = 1
-    value = {}
+    value: dict = {}
 
     def original(a):
-        return (a, marker)
+        return a, marker
 
     memoized = cache.memoize()(original)
 
     assert memoized.cache is cache
     assert memoized.uncached is original
 
-    _, markx = memoized(value)
-    assert markx == marker
+    _, mark_x = memoized(value)
+    assert mark_x == marker
 
     marker += 1
-    _, marky = memoized(value)
+    _, mark_y = memoized(value)
 
-    assert marky != marker
-    assert marky == markx
+    assert mark_y != marker
+    assert mark_y == mark_x
 
-    _, markz = memoized.uncached(value)
-    assert markz == marker
+    _, mark_z = memoized.uncached(value)
+    assert mark_z == marker
 
 
-def test_cache_memoize_async(cache):
+def test_cache_memoize_async(cache: Cache):
     """Test that cache.memoize() can decorate async functions."""
     loop = asyncio.get_event_loop()
     marker = 1
 
     @cache.memoize()
     async def func(a):
-        return (a, marker)
+        return a, marker
 
     assert asyncio.iscoroutinefunction(func)
 
@@ -459,7 +467,7 @@ def test_cache_memoize_async(cache):
     assert len(cache) == 2
 
 
-def test_cache_memoize_async_runtime_error_regression(cache):
+def test_cache_memoize_async_runtime_error_regression(cache: Cache):
     """
     Test that cache.memoize() doesn't raise RuntimeError.
 
@@ -481,7 +489,7 @@ def test_cache_memoize_async_runtime_error_regression(cache):
     loop.run_until_complete(func())
 
 
-def test_cache_size(cache):
+def test_cache_size(cache: Cache):
     """Test that cache.size() returns the number of cache keys."""
     assert cache.size() == len(cache) == 0
 
@@ -490,7 +498,7 @@ def test_cache_size(cache):
         assert cache.size() == len(cache) == n
 
 
-def test_cache_full(cache):
+def test_cache_full(cache: Cache):
     """Test that cache.full() returns whether the cache is full or not."""
     for n in range(cache.maxsize):
         assert not cache.full()
@@ -499,7 +507,7 @@ def test_cache_full(cache):
     assert cache.full()
 
 
-def test_cache_full_unbounded(cache):
+def test_cache_full_unbounded(cache: Cache):
     """Test that cache.full() always returns False for an unbounded cache."""
     cache.configure(maxsize=0)
     for n in range(1000):
@@ -507,7 +515,7 @@ def test_cache_full_unbounded(cache):
         assert not cache.full()
 
 
-def test_cache_has(cache):
+def test_cache_has(cache: Cache):
     """Test that cache.has() returns whether a key exists or not."""
     key, value = ("key", "value")
 
@@ -520,7 +528,7 @@ def test_cache_has(cache):
     assert key in cache
 
 
-def test_cache_has_on_expired(cache, timer):
+def test_cache_has_on_expired(cache, timer: Timer):
     """Test that cache.has() takes into account expired keys."""
     key, value = ("key", "value")
 
@@ -535,7 +543,7 @@ def test_cache_has_on_expired(cache, timer):
     assert key not in cache
 
 
-def test_cache_copy(cache):
+def test_cache_copy(cache: Cache):
     """Test that cache.copy() returns a copy of the cache."""
     items = {"a": 1, "b": 2, "c": 3}
     cache.set_many(items)
@@ -545,7 +553,7 @@ def test_cache_copy(cache):
     assert copied is not cache._cache
 
 
-def test_cache_clear(cache):
+def test_cache_clear(cache: Cache):
     """Test that cache.clear() deletes all cache keys."""
     items = {"a": 1, "b": 2, "c": 3}
     cache.set_many(items)
@@ -555,7 +563,7 @@ def test_cache_clear(cache):
     assert len(cache) == 0
 
 
-def test_cache_keys(cache):
+def test_cache_keys(cache: Cache):
     """Test that cache.keys() returns all cache keys."""
     items = {"a": 1, "b": 2, "c": 3}
     cache.set_many(items)
@@ -563,7 +571,7 @@ def test_cache_keys(cache):
     assert sorted(cache.keys()) == sorted(items.keys())
 
 
-def test_cache_values(cache):
+def test_cache_values(cache: Cache):
     """Test that cache.values() returns all cache values."""
     items = {"a": 1, "b": 2, "c": 3}
     cache.set_many(items)
@@ -571,7 +579,7 @@ def test_cache_values(cache):
     assert sorted(cache.values()) == sorted(items.values())
 
 
-def test_cache_items(cache):
+def test_cache_items(cache: Cache):
     """Test that cache.items() returns all cache key/values."""
     items = {"a": 1, "b": 2, "c": 3}
     cache.set_many(items)
@@ -579,7 +587,7 @@ def test_cache_items(cache):
     assert set(cache.items()) == set(items.items())
 
 
-def test_cache_popitem(cache):
+def test_cache_popitem(cache: Cache):
     """Test that cache.popitem() removes the oldest entries first."""
     keys = list(range(cache.maxsize))
 
@@ -596,9 +604,9 @@ def test_cache_popitem(cache):
         cache.popitem()
 
 
-def test_cache_iter(cache):
+def test_cache_iter(cache: Cache):
     """Test that iterating over cache yields each cache key."""
-    items = {"a": 1, "b": 2, "c": 3}
+    items: dict = {"a": 1, "b": 2, "c": 3}
     cache.set_many(items)
 
     keys = []
@@ -609,7 +617,7 @@ def test_cache_iter(cache):
     assert set(keys) == set(items)
 
 
-def test_cache_repr(cache):
+def test_cache_repr(cache: Cache):
     """Test that repr(cache) returns a representation of the cache object."""
     assert repr(cache) == "Cache([])"
 

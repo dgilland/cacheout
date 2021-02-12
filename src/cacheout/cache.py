@@ -3,6 +3,7 @@ types."""
 
 import asyncio
 from collections import OrderedDict
+from collections.abc import Mapping
 from decimal import Decimal
 import fnmatch
 from functools import wraps
@@ -11,20 +12,22 @@ import inspect
 import re
 from threading import RLock
 import time
+import typing as t
 
 
-try:
-    from re import Pattern
-except ImportError:  # pragma: no cover
-    from re import _pattern_type as Pattern
+F = t.TypeVar("F", bound=t.Callable[..., t.Any])
+T_DECORATOR = t.Callable[[F], F]
+T_TTL = t.Union[int, float]
+T_FILTER = t.Union[str, t.List[t.Hashable], t.Pattern, t.Callable]
+
+UNSET = object()
 
 
-_NOTSET = object()
-
-
-class Cache(object):
+class Cache:
     """
-    An in-memory, FIFO cache object that supports:
+    An in-memory, FIFO cache object.
+
+    It supports:
 
     - Maximum number of cache entries
     - Global TTL default
@@ -40,35 +43,42 @@ class Cache(object):
     end of the queue).
 
     Attributes:
-        maxsize (int, optional): Maximum size of cache dictionary. Defaults to ``256``.
-        ttl (int, optional): Default TTL for all cache entries. Defaults to ``0`` which means that
-            entries do not expire.
-        timer (callable, optional): Timer function to use to calculate TTL expiration. Defaults to
-            ``time.time``.
-        default (mixed, optional): Default value or function to use in :meth:`get` when key is not
-            found. If callable, it will be passed a single argument, ``key``, and its return value
-            will be set for that cache key.
+        maxsize: Maximum size of cache dictionary. Defaults to ``256``.
+        ttl: Default TTL for all cache entries. Defaults to ``0`` which means that entries do not
+            expire.
+        timer: Timer function to use to calculate TTL expiration. Defaults to ``time.time``.
+        default: Default value or function to use in :meth:`get` when key is not found. If callable,
+            it will be passed a single argument, ``key``, and its return value will be set for that
+            cache key.
     """
 
-    def __init__(self, maxsize=None, ttl=None, timer=None, default=None):
-        if maxsize is None:
-            maxsize = 256
-
-        if ttl is None:
-            ttl = 0
-
-        if timer is None:
-            timer = time.time
+    def __init__(
+        self,
+        maxsize: int = 256,
+        ttl: T_TTL = 0,
+        timer: t.Callable[[], T_TTL] = time.time,
+        default: t.Any = None,
+    ):
+        self.maxsize = maxsize
+        self.ttl = ttl
+        self.timer = timer
+        self.default = default
 
         self.setup()
         self.configure(maxsize=maxsize, ttl=ttl, timer=timer, default=default)
 
-    def setup(self):
-        self._cache = OrderedDict()
-        self._expire_times = {}
+    def setup(self) -> None:
+        self._cache: OrderedDict = OrderedDict()
+        self._expire_times: t.Dict[t.Hashable, T_TTL] = {}
         self._lock = RLock()
 
-    def configure(self, maxsize=None, ttl=None, timer=None, default=None):
+    def configure(
+        self,
+        maxsize: t.Optional[int] = None,
+        ttl: t.Optional[T_TTL] = None,
+        timer: t.Optional[t.Callable[[], T_TTL]] = None,
+        default: t.Any = UNSET,
+    ) -> None:
         """
         Configure cache settings.
 
@@ -98,129 +108,106 @@ class Cache(object):
 
             self.timer = timer
 
-        self.default = default
+        if default is not UNSET:
+            self.default = default
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}({list(self.copy().items())})"
 
-    def __len__(self):
+    def __len__(self) -> int:
         with self._lock:
             return len(self._cache)
 
-    def __contains__(self, key):
+    def __contains__(self, key: t.Hashable) -> bool:
         with self._lock:
             return key in self._cache
 
-    def __iter__(self):
+    def __iter__(self) -> t.Iterator[t.Hashable]:
         yield from self.keys()
 
-    def __next__(self):
+    def __next__(self) -> t.Hashable:
         return next(iter(self._cache))
 
-    def copy(self):
-        """
-        Return a copy of the cache.
-
-        Returns:
-            OrderedDict
-        """
+    def copy(self) -> OrderedDict:
+        """Return a copy of the cache."""
         with self._lock:
             return self._cache.copy()
 
-    def keys(self):
+    def keys(self) -> t.KeysView:
         """
         Return ``dict_keys`` view of all cache keys.
 
         Note:
             Cache is copied from the underlying cache storage before returning.
-
-        Returns:
-            dict_keys
         """
         return self.copy().keys()
 
-    def values(self):
+    def values(self) -> t.ValuesView:
         """
         Return ``dict_values`` view of all cache values.
 
         Note:
             Cache is copied from the underlying cache storage before returning.
-
-        Returns:
-            dict_values
         """
         return self.copy().values()
 
-    def items(self):
+    def items(self) -> t.ItemsView:
         """
         Return a ``dict_items`` view of cache items.
 
         Warning:
             Returned data is copied from the cache object, but any modifications to mutable values
             will modify this cache object's data.
-
-        Returns:
-            dict_items
         """
         return self.copy().items()
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all cache entries."""
         with self._lock:
             self._clear()
 
-    def _clear(self):
+    def _clear(self) -> None:
         self._cache.clear()
         self._expire_times.clear()
 
-    def has(self, key):
-        """
-        Return whether cache key exists and hasn't expired.
-
-        Returns:
-            bool
-        """
+    def has(self, key: t.Hashable) -> bool:
+        """Return whether cache key exists and hasn't expired."""
         with self._lock:
             return self._has(key)
 
-    def _has(self, key):
+    def _has(self, key: t.Hashable) -> bool:
         # Use get method since it will take care of evicting expired keys.
-        return self._get(key, default=_NOTSET) is not _NOTSET
+        return self._get(key, default=UNSET) is not UNSET
 
-    def size(self):
+    def size(self) -> int:
         """Return number of cache entries."""
         return len(self)
 
-    def full(self):
-        """
-        Return whether the cache is full or not.
-
-        Returns:
-            bool
-        """
+    def full(self) -> bool:
+        """Return whether the cache is full or not."""
         if self.maxsize == 0:
             return False
         return len(self) >= self.maxsize
 
-    def get(self, key, default=None):
+    def get(self, key: t.Hashable, default: t.Any = None) -> t.Any:
         """
         Return the cache value for `key` or `default` or ``missing(key)`` if it doesn't exist or has
         expired.
 
         Args:
-            key (mixed): Cache key.
-            default (mixed, optional): Value to return if `key` doesn't exist. If any value other
-                than ``None``, then it will take precendence over :attr:`missing` and be used as the
-                return value. If `default` is callable, it will function like :attr:`missing` and
-                its return value will be set for the cache `key`. Defaults to ``None``.
+            key: Cache key.
+            default: Value to return if `key` doesn't exist. If any value other than ``None``, then
+                it will take precedence over :attr:`missing` and be used as the return value. If
+                `default` is callable, it will function like :attr:`missing` and its return value
+                will be set for the cache `key`. Defaults to ``None``.
 
         Returns:
-            mixed: The cached value.
+            The cached value.
         """
         with self._lock:
             return self._get(key, default=default)
 
-    def _get(self, key, default=None):
+    def _get(self, key: t.Hashable, default: t.Any = None) -> t.Any:
         try:
             value = self._cache[key]
 
@@ -239,76 +226,70 @@ class Cache(object):
 
         return value
 
-    def get_many(self, iteratee, default=None):
+    def get_many(self, iteratee: T_FILTER, default: t.Any = None) -> dict:
         """
-        Return many cache values as a ``dict`` of key/value pairs filtered by an `iteratee` that can
-        be one of:
+        Return many cache values as a ``dict`` of key/value pairs filtered by an `iteratee`.
 
-        - ``list`` - List of cache keys.
-        - ``str`` - Search string that supports Unix shell-style wildcards.
-        - ``re.compile()`` - Compiled regular expression.
-        - ``function`` - Function that returns whether a key matches. Invoked with
-          ``iteratee(key)``.
+        The `iteratee` can be one of:
+
+        - ``list`` - List of cache keys
+        - ``str`` - Search string that supports Unix shell-style wildcards
+        - ``re.compile()`` - Compiled regular expression
+        - ``callable`` - Function that returns whether a key matches. Invoked with ``iteratee(key)``
 
         Args:
-            iteratee (list|str|Pattern|callable): Iteratee to filter by.
-            default (mixed, optional): Value to return if key doesn't exist. Defaults to ``None``.
-
-        Returns:
-            dict
+            iteratee: Iteratee to filter by.
+            default: Value to return if key doesn't exist. Defaults to ``None``.
         """
         with self._lock:
             return {key: self.get(key, default=default) for key in self._filter(iteratee)}
 
-    def add(self, key, value, ttl=None):
+    def add(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
         """
-        Add cache key/value if it doesn't already exist. Essentially, this method ignores keys that
-        exist which leaves the original TTL in tact.
+        Add cache key/value if it doesn't already exist.
 
-        Note:
-            Cache key must be hashable.
+        This method ignores keys that exist which leaves the original TTL in tact.
 
         Args:
-            key (mixed): Cache key to add.
-            value (mixed): Cache value.
-            ttl (int, optional): TTL value. Defaults to ``None`` which uses :attr:`ttl`.
+            key: Cache key to add.
+            value: Cache value.
+            ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`.
         """
         with self._lock:
             self._add(key, value, ttl=ttl)
 
-    def _add(self, key, value, ttl=None):
+    def _add(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
         if self._has(key):
             return
         self._set(key, value, ttl=ttl)
 
-    def add_many(self, items, ttl=None):
+    def add_many(self, items: Mapping, ttl: t.Optional[T_TTL] = None) -> None:
         """
         Add multiple cache keys at once.
 
         Args:
-            items (dict): Mapping of cache key/values to set.
+            items: Mapping of cache key/values to set.
+            ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`.
         """
         for key, value in items.items():
             self.add(key, value, ttl=ttl)
 
-    def set(self, key, value, ttl=None):
+    def set(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
         """
-        Set cache key/value and replace any previously set cache key. If the cache key previous
-        existed, setting it will move it to the end of the cache stack which means it would be
-        evicted last.
+        Set cache key/value and replace any previously set cache key.
 
-        Note:
-            Cache key must be hashable.
+        If the cache key previously existed, setting it will move it to the end of the cache stack
+        which means it would be evicted last.
 
         Args:
-            key (mixed): Cache key to set.
-            value (mixed): Cache value.
-            ttl (int, optional): TTL value. Defaults to ``None`` which uses :attr:`ttl`.
+            key: Cache key to set.
+            value: Cache value.
+            ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`.
         """
         with self._lock:
             self._set(key, value, ttl=ttl)
 
-    def _set(self, key, value, ttl=None):
+    def _set(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
         if ttl is None:
             ttl = self.ttl
 
@@ -321,19 +302,23 @@ class Cache(object):
         if ttl and ttl > 0:
             self._expire_times[key] = self.timer() + ttl
 
-    def set_many(self, items, ttl=None):
+    def set_many(self, items: t.Mapping, ttl: t.Optional[T_TTL] = None) -> None:
         """
         Set multiple cache keys at once.
 
         Args:
-            items (dict): Mapping of cache key/values to set.
+            items: Mapping of cache key/values to set.
+            ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`.
         """
         for key, value in items.items():
             self.set(key, value, ttl=ttl)
 
-    def delete(self, key):
+    def delete(self, key: t.Hashable) -> int:
         """
         Delete cache key and return number of entries deleted (``1`` or ``0``).
+
+        Args:
+            key: Cache key to delete.
 
         Returns:
             int: ``1`` if key was deleted, ``0`` if key didn't exist.
@@ -341,7 +326,7 @@ class Cache(object):
         with self._lock:
             return self._delete(key)
 
-    def _delete(self, key):
+    def _delete(self, key: t.Hashable) -> int:
         count = 0
 
         try:
@@ -357,9 +342,11 @@ class Cache(object):
 
         return count
 
-    def delete_many(self, iteratee):
+    def delete_many(self, iteratee: T_FILTER) -> int:
         """
-        Delete multiple cache keys at once filtered by an `iteratee` that can be one of:
+        Delete multiple cache keys at once filtered by an `iteratee`.
+
+        The `iteratee` can be one of:
 
         - ``list`` - List of cache keys.
         - ``str`` - Search string that supports Unix shell-style wildcards.
@@ -368,21 +355,20 @@ class Cache(object):
           ``iteratee(key)``.
 
         Args:
-            iteratee (list|str|Pattern|callable): Iteratee to filter by.
+            iteratee: Iteratee to filter by.
 
         Returns:
             int: Number of cache keys deleted.
         """
         count = 0
-
         with self._lock:
+            # Convert to list since we're going to be deleting keys as we iterate.
             keys = list(self._filter(iteratee))
             for key in keys:
                 count += self.delete(key)
-
         return count
 
-    def delete_expired(self):
+    def delete_expired(self) -> int:
         """
         Delete expired cache keys and return number of entries deleted.
 
@@ -392,34 +378,29 @@ class Cache(object):
         with self._lock:
             return self._delete_expired()
 
-    def _delete_expired(self):
-        count = 0
-
+    def _delete_expired(self) -> int:
         if not self._expire_times:
-            return count
+            return 0
 
         # Use a static expiration time for each key for better consistency as opposed to
         # a newly computed timestamp on each iteration.
+        count = 0
         expires_on = self.timer()
         expire_times = self._expire_times.copy()
 
         for key, expiration in expire_times.items():
             if expiration <= expires_on:
                 count += self._delete(key)
-
         return count
 
-    def expired(self, key, expires_on=None):
+    def expired(self, key: t.Hashable, expires_on: t.Optional[T_TTL] = None) -> bool:
         """
         Return whether cache key is expired or not.
 
         Args:
-            key (mixed): Cache key.
-            expires_on (float, optional): Timestamp of when the key is considered expired. Defaults
-                to ``None`` which uses the current value returned from :meth:`timer`.
-
-        Returns:
-            bool
+            key: Cache key.
+            expires_on: Timestamp of when the key is considered expired. Defaults to ``None`` which
+                uses the current value returned from :meth:`timer`.
         """
         if not expires_on:
             expires_on = self.timer()
@@ -429,7 +410,7 @@ class Cache(object):
         except KeyError:
             return key not in self
 
-    def expire_times(self):
+    def expire_times(self) -> t.Dict[t.Hashable, T_TTL]:
         """
         Return cache expirations for TTL keys.
 
@@ -439,7 +420,7 @@ class Cache(object):
         with self._lock:
             return self._expire_times.copy()
 
-    def evict(self):
+    def evict(self) -> int:
         """
         Perform cache eviction per the cache replacement policy:
 
@@ -451,7 +432,7 @@ class Cache(object):
         expired entries will be removed.
 
         Returns:
-            int: Number of cache entries evicted.
+            Number of cache entries evicted.
         """
         count = self.delete_expired()
 
@@ -468,14 +449,14 @@ class Cache(object):
 
         return count
 
-    def popitem(self):
+    def popitem(self) -> t.Tuple[t.Hashable, t.Any]:
         """
         Delete and return next cache item, ``(key, value)``, based on cache replacement policy while
-        ignoring expiration times (i.e. the selection of the item to pop is based soley on the cache
-        key ordering).
+        ignoring expiration times (i.e. the selection of the item to pop is based solely on the
+        cache key ordering).
 
         Returns:
-            tuple: Two-element tuple of deleted cache ``(key, value)``.
+            Two-element tuple of deleted cache ``(key, value)``.
         """
         with self._lock:
             self._delete_expired()
@@ -488,18 +469,17 @@ class Cache(object):
             raise KeyError("popitem(): cache is empty")
 
         value = self._cache[key]
-
         self._delete(key)
 
-        return (key, value)
+        return key, value
 
-    def _filter(self, iteratee):
+    def _filter(self, iteratee: T_FILTER) -> t.Iterator[t.Hashable]:
         # By default, we'll filter against cache storage.
-        target = self._cache
+        target: t.Iterable = self._cache
 
         if isinstance(iteratee, str):
             filter_by = re.compile(fnmatch.translate(iteratee)).match
-        elif isinstance(iteratee, Pattern):
+        elif isinstance(iteratee, t.Pattern):
             filter_by = iteratee.match
         elif callable(iteratee):
             filter_by = iteratee
@@ -511,12 +491,12 @@ class Cache(object):
             # checking if a key is in iteratee keys.
             target = iteratee
 
-            def filter_by(key):
+            def filter_by(key):  # type: ignore
                 return key in self._cache
 
-        return filter(filter_by, target)
+        yield from filter(filter_by, target)
 
-    def memoize(self, *, ttl=None, typed=False):
+    def memoize(self, *, ttl: t.Optional[T_TTL] = None, typed: bool = False) -> T_DECORATOR:
         """
         Decorator that wraps a function with a memoizing callable and works on both synchronous and
         asynchronous functions.
@@ -572,9 +552,17 @@ class Cache(object):
         return decorator
 
 
-def _make_memoize_key(func, args, kwargs, marker, typed, argspec, prefix):
+def _make_memoize_key(
+    func: t.Callable,
+    args: tuple,
+    kwargs: dict,
+    marker: tuple,
+    typed: bool,
+    argspec: inspect.FullArgSpec,
+    prefix: str,
+) -> str:
     kwargs = kwargs.copy()
-    key_args = (func,)
+    key_args: tuple = (func,)
 
     # Normalize args by moving positional arguments passed in as keyword arguments from kwargs into
     # args. This is so functions like foo(a, b, c) called with foo(1, b=2, c=3) and foo(1, 2, 3) and
@@ -600,15 +588,14 @@ def _make_memoize_key(func, args, kwargs, marker, typed, argspec, prefix):
         key_args += tuple(type(val) for _, val in sorted(kwargs.items()))
 
     # Hash everything in key_args and concatenate into a single byte string.
-    raw_key = b"".join(map(lambda v: str(v).encode(), (_hash_value(arg) for arg in key_args)))
+    raw_key = "".join(str(_hash_value(key_arg)) for key_arg in key_args)
 
     # Combine prefix with md5 hash of raw key so that keys are normalized in length.
-    return prefix + hashlib.md5(raw_key).hexdigest()
+    return prefix + hashlib.md5(raw_key.encode()).hexdigest()
 
 
-def _hash_value(value):
-    # Prefer to hash value based on Python's hash() function but fallback to repr() if it's
-    # unhashable.
+def _hash_value(value: t.Any) -> t.Union[int, str]:
+    # Prefer to hash value based on Python's hash() function but fallback to repr() if unhashable.
     try:
         return hash(value)
     except TypeError:

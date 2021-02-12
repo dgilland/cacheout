@@ -1,3 +1,4 @@
+import typing as t
 from unittest import mock
 
 import pytest
@@ -35,7 +36,7 @@ parametrize = pytest.mark.parametrize
         (rr_memoize, RRCache),
     ],
 )
-def test_memoize_cache(memoizer, cache_class):
+def test_memoize_cache(memoizer: t.Callable, cache_class: t.Type[Cache]):
     @memoizer()
     def func():
         pass

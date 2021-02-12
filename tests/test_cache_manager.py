@@ -10,7 +10,7 @@ class MyCache(Cache):
     pass
 
 
-def assert_cache_options(cache, options):
+def assert_cache_options(cache: Cache, options: dict):
     for opt, val in options.items():
         assert getattr(cache, opt) == val
 
@@ -84,7 +84,7 @@ def test_cache_manager_setup():
 
 
 def test_cache_manager_invalid_settings():
-    """Thest that CacheManager raises on invalid settings."""
+    """Test that CacheManager raises on invalid settings."""
     with pytest.raises(TypeError):
         CacheManager([{}])
 

@@ -1,33 +1,17 @@
-from random import SystemRandom
-
 import pytest
 
 from cacheout import LFUCache
 
 
 parametrize = pytest.mark.parametrize
-random = SystemRandom()
 
 
 @pytest.fixture
-def cache():
-    _cache = LFUCache(maxsize=5)
-    return _cache
+def cache() -> LFUCache:
+    return LFUCache(maxsize=5)
 
 
-def assert_keys_evicted_in_order(cache, keys):
-    """Assert that cache keys are evicted in the same order as `keys`."""
-    keys = keys.copy()
-    for n in range(cache.maxsize, cache.maxsize * 2):
-        cache.set(n, n)
-        assert cache.full()
-        assert keys.pop(0) not in cache
-
-        for key in keys:
-            assert key in cache
-
-
-def test_lfu_eviction(cache):
+def test_lfu_eviction(cache: LFUCache):
     """Test that LFUCache evicts least frequently used set entries first."""
     key_counts = [("a", 4), ("b", 3), ("c", 5), ("d", 1), ("e", 2)]
 
@@ -54,13 +38,13 @@ def test_lfu_eviction(cache):
             assert key in cache
 
 
-def test_lfu_get(cache):
+def test_lfu_get(cache: LFUCache):
     """Test that LFUCache.get() returns cached value."""
     for key, value in cache.items():
         assert cache.get(key) == value
 
 
-def test_lfu_clear(cache):
+def test_lfu_clear(cache: LFUCache):
     """Test that LFUCache.clear() resets access counts."""
     cache.maxsize = 2
 

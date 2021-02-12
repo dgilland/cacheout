@@ -1,5 +1,7 @@
 """The mru module provides the :class:`MRUCache` (Most Recently Used) class."""
 
+import typing as t
+
 from .lru import LRUCache
 
 
@@ -16,5 +18,5 @@ class MRUCache(LRUCache):
     the eviction queue first instead of evicting from the beginning.
     """
 
-    def __next__(self):
+    def __next__(self) -> t.Hashable:
         return next(reversed(self._cache))

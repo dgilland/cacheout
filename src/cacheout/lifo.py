@@ -1,5 +1,7 @@
 """The lifo module provides the :class:`LIFOCache` (Last-In, First-Out) class."""
 
+import typing as t
+
 from .cache import Cache
 
 
@@ -13,5 +15,5 @@ class LIFOCache(Cache):
     added to the cache is the first entry to be removed.
     """
 
-    def __next__(self):
+    def __next__(self) -> t.Hashable:
         return next(reversed(self._cache))

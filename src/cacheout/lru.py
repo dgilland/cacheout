@@ -1,5 +1,7 @@
 """The lru module provides the :class:`LRUCache` (Least Recently Used) class."""
 
+import typing as t
+
 from .cache import Cache
 
 
@@ -12,10 +14,8 @@ class LRUCache(Cache):
     that only moves entries on ``set()``.
     """
 
-    def _get(self, key, default=None):
+    def _get(self, key: t.Hashable, default: t.Any = None) -> t.Any:
         value = super()._get(key, default=default)
-
         if key in self._cache:
             self._cache.move_to_end(key)
-
         return value

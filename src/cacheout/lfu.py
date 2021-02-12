@@ -1,8 +1,9 @@
 """The lfu module provides the :class:`LFUCache` (Least Frequently Used) class."""
 
 from collections import Counter
+import typing as t
 
-from .cache import Cache
+from .cache import T_TTL, Cache
 
 
 class LFUCache(Cache):
@@ -16,11 +17,11 @@ class LFUCache(Cache):
     entry with the lowest access count is removed first.
     """
 
-    def setup(self):
+    def setup(self) -> None:
         super().setup()
-        self._access_counts = Counter()
+        self._access_counts: Counter = Counter()
 
-    def __next__(self):
+    def __next__(self) -> t.Hashable:
         with self._lock:
             try:
                 return self._access_counts.most_common(1)[0][0]
@@ -28,22 +29,22 @@ class LFUCache(Cache):
                 # Empty cache.
                 raise StopIteration
 
-    def _touch(self, key):
+    def _touch(self, key: t.Hashable) -> None:
         # Decrement access counts so we can use Counter.most_common() to return the least accessed
         # keys first (i.e. keys with a higher count).
         self._access_counts[key] -= 1
 
-    def _get(self, key, default=None):
+    def _get(self, key: t.Hashable, default: t.Any = None) -> t.Any:
         value = super()._get(key, default=default)
         if key in self:
             self._touch(key)
         return value
 
-    def _set(self, key, value, ttl=None):
+    def _set(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
         super()._set(key, value, ttl=ttl)
         self._touch(key)
 
-    def _delete(self, key):
+    def _delete(self, key: t.Hashable) -> int:
         count = super()._delete(key)
 
         try:
@@ -53,6 +54,6 @@ class LFUCache(Cache):
 
         return count
 
-    def _clear(self):
+    def _clear(self) -> None:
         super()._clear()
         self._access_counts.clear()
