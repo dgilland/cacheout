@@ -1,6 +1,7 @@
 """Cacheout is a caching library for Python."""
 
-from .__version__ import __version__
+__version__ = "0.11.2"
+
 from .cache import Cache
 from .fifo import FIFOCache
 from .lfu import LFUCache
