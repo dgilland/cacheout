@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+v0.12.0 (2021-04-19)
+--------------------
+
 - Fix bug in ``Cache.__contains__`` where it would return ``True`` for an expired key.
 - Add type annotations.
 - Add official support for Python 3.8 and 3.9.
