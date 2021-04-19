@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+- Fix regression in ``0.12.0`` that resulted in missing docstrings for some methods of ``LFUCache`` and ``LRUCache``.
+
+
 v0.12.0 (2021-04-19)
 --------------------
 

@@ -20,3 +20,5 @@ class LRUCache(Cache):
             if key in self._cache:
                 self._cache.move_to_end(key)
             return value
+
+    get.__doc__ = Cache.get.__doc__

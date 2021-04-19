@@ -43,15 +43,21 @@ class LFUCache(Cache):
                 self._touch(key)
             return value
 
+    get.__doc__ = Cache.get.__doc__
+
     def set(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
         with self._lock:
             super().set(key, value, ttl=ttl)
             self._touch(key)
 
+    set.__doc__ = Cache.set.__doc__
+
     def add(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
         with self._lock:
             super().add(key, value, ttl=ttl)
             self._touch(key)
+
+    add.__doc__ = Cache.add.__doc__
 
     def _delete(self, key: t.Hashable) -> int:
         count = super()._delete(key)
