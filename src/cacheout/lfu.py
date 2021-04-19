@@ -17,6 +17,8 @@ class LFUCache(Cache):
     entry with the lowest access count is removed first.
     """
 
+    _access_counts: Counter
+
     def setup(self) -> None:
         super().setup()
         self._access_counts: Counter = Counter()

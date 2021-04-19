@@ -52,6 +52,10 @@ class Cache:
             cache key.
     """
 
+    _cache: OrderedDict
+    _expire_times: t.Dict[t.Hashable, T_TTL]
+    _lock: RLock
+
     def __init__(
         self,
         maxsize: int = 256,
