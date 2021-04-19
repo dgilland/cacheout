@@ -535,11 +535,22 @@ def test_cache_has_on_expired(cache, timer: Timer):
     cache.set(key, value, ttl=1)
 
     assert cache.has(key)
-    assert key in cache
 
     timer.time = 1
 
     assert not cache.has(key)
+
+
+def test_cache_contains_on_expired(cache, timer: Timer):
+    """Test that "key in cache" takes into account expired keys."""
+    key, value = ("key", "value")
+
+    cache.set(key, value, ttl=1)
+
+    assert key in cache
+
+    timer.time = 1
+
     assert key not in cache
 
 

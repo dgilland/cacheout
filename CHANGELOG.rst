@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+- Fix bug in ``Cache.__contains__`` where it would return ``True`` for an expired key.
+
+
 v0.11.2 (2019-09-30)
 --------------------
 

@@ -24,7 +24,9 @@ def assert_keys_evicted_in_order(cache: LRUCache, keys: list):
     for n in range(cache.maxsize, cache.maxsize * 2):
         cache.set(n, n)
         assert cache.full()
-        assert keys.pop(0) not in cache
+
+        evicted_key = keys.pop(0)
+        assert evicted_key not in cache
 
         for key in keys:
             assert key in cache

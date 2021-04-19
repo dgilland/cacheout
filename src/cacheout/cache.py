@@ -119,8 +119,7 @@ class Cache:
             return len(self._cache)
 
     def __contains__(self, key: t.Hashable) -> bool:
-        with self._lock:
-            return key in self._cache
+        return self.has(key)
 
     def __iter__(self) -> t.Iterator[t.Hashable]:
         yield from self.keys()
@@ -293,7 +292,7 @@ class Cache:
         if ttl is None:
             ttl = self.ttl
 
-        if key not in self:
+        if key not in self._cache:
             self.evict()
 
         self._delete(key)
@@ -408,7 +407,7 @@ class Cache:
         try:
             return self._expire_times[key] <= expires_on
         except KeyError:
-            return key not in self
+            return key not in self._cache
 
     def expire_times(self) -> t.Dict[t.Hashable, T_TTL]:
         """

@@ -86,3 +86,35 @@ def test_lfu_maxsize_violation_regression():
     cache.add(6, 1)
 
     assert list(cache.keys()) == [1, 2, 4, 6]
+
+
+def test_lfu_has_does_not_increase_access_count(cache: LFUCache):
+    """Test that LFUCache.has does not increase access counts to keys."""
+    assert not cache.has("a")
+    assert not cache._access_counts
+
+    cache.set("a", True)
+    assert cache._access_counts["a"] == -1
+
+    assert cache.has("a")
+    assert cache._access_counts["a"] == -1
+
+
+def test_lfu_contains_does_not_increase_access_count(cache: LFUCache):
+    """Test that "key in LFUCache" does not increase access counts to keys."""
+    assert "a" not in cache
+    assert not cache._access_counts
+
+    cache.set("a", True)
+    assert cache._access_counts["a"] == -1
+
+    assert "a" in cache
+    assert cache._access_counts["a"] == -1
+
+
+def test_lfu_access_count_using_default_callable():
+    cache = LFUCache(default=lambda key: False)
+    value = cache.get("a")
+
+    assert value is False
+    assert cache._access_counts["a"] == -1
