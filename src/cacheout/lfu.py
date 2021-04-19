@@ -24,8 +24,8 @@ class LFUCache(Cache):
     def __next__(self) -> t.Hashable:
         with self._lock:
             try:
-                return self._access_counts.most_common(1)[0][0]
-            except ValueError:  # pragma: no cover
+                return self._access_counts.most_common(n=1)[0][0]
+            except (ValueError, IndexError):  # pragma: no cover
                 # Empty cache.
                 raise StopIteration
 
