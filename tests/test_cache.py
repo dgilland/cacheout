@@ -360,7 +360,7 @@ def test_cache_memoize_typed(cache: Cache):
 
 
 def test_cache_memoize_arg_normalization(cache: Cache):
-    """Test taht cache.memoize() normalizes argument ordering for positional and keyword
+    """Test that cache.memoize() normalizes argument ordering for positional and keyword
     arguments."""
 
     @cache.memoize(typed=True)
