@@ -507,7 +507,9 @@ class Cache:
         Each return value from the function will be cached using the function arguments as the cache
         key. The cache object can be accessed at ``<function>.cache``. The uncached version (i.e.
         the original function) can be accessed at ``<function>.uncached``. Each return value from
-        the function will be cached using the function arguments as the cache key.
+        the function will be cached using the function arguments as the cache key. Calculate the
+        cache key for the provided function arguments for use in other operations of the
+        ``<function>.cache`` object using the function accessible at ``<function>.cache_key``
 
         Keyword Args:
             ttl (int, optional): TTL value. Defaults to ``None`` which uses :attr:`ttl`.
@@ -521,11 +523,14 @@ class Cache:
             prefix = f"{func.__module__}.{func.__name__}:"
             argspec = inspect.getfullargspec(func)
 
+            def get_decorated_key(*args, **kwargs):
+                return _make_memoize_key(func, args, kwargs, marker, typed, argspec, prefix)
+
             if asyncio.iscoroutinefunction(func):
 
                 @wraps(func)
                 async def decorated(*args, **kwargs):
-                    key = _make_memoize_key(func, args, kwargs, marker, typed, argspec, prefix)
+                    key = get_decorated_key(*args, **kwargs)
                     value = self.get(key, default=marker)
 
                     if value is marker:
@@ -538,7 +543,7 @@ class Cache:
 
                 @wraps(func)
                 def decorated(*args, **kwargs):
-                    key = _make_memoize_key(func, args, kwargs, marker, typed, argspec, prefix)
+                    key = get_decorated_key(*args, **kwargs)
                     value = self.get(key, default=marker)
 
                     if value is marker:
@@ -548,6 +553,7 @@ class Cache:
                     return value
 
             decorated.cache = self
+            decorated.cache_key = get_decorated_key
             decorated.uncached = func
 
             return decorated
