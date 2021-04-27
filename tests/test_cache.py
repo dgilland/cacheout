@@ -555,6 +555,23 @@ def test_cache_full_unbounded(cache: Cache):
         assert not cache.full()
 
 
+def test_cache_full_maxsize_none():
+    """Test that cache.full() works when maxsize is None."""
+    cache = Cache(maxsize=None)
+    for n in range(1000):
+        cache.set(n, n)
+        assert not cache.full()
+
+
+def test_cache_full_maxsize_negative():
+    """Test that cache.full() works when maxsize is negative."""
+    cache = Cache()
+    cache.maxsize = -1
+    for n in range(1000):
+        cache.set(n, n)
+        assert not cache.full()
+
+
 def test_cache_has(cache: Cache):
     """Test that cache.has() returns whether a key exists or not."""
     key, value = ("key", "value")

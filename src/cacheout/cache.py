@@ -188,7 +188,7 @@ class Cache:
 
     def full(self) -> bool:
         """Return whether the cache is full or not."""
-        if self.maxsize == 0 or self.maxsize is None:
+        if self.maxsize is None or self.maxsize <= 0:
             return False
         return len(self) >= self.maxsize
 
