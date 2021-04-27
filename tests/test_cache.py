@@ -360,7 +360,7 @@ def test_cache_memoize_typed(cache: Cache):
 
 
 def test_cache_memoize_arg_normalization(cache: Cache):
-    """Test taht cache.memoize() normalizes argument ordering for positional and keyword
+    """Test that cache.memoize() normalizes argument ordering for positional and keyword
     arguments."""
 
     @cache.memoize(typed=True)
@@ -375,7 +375,8 @@ def test_cache_memoize_arg_normalization(cache: Cache):
         ((), {"a": 1, "b": 2, "c": 3, "d": 4, "e": 5}),
         ((), {"a": 1, "b": 2, "c": 3, "d": 4, "e": 5}),
     ):
-        func(*args, **kwargs)
+        cached = func(*args, **kwargs)
+        assert cache.get(func.cache_key(*args, **kwargs)) is cached
         assert len(cache) == 1
 
 
@@ -422,6 +423,7 @@ def test_cache_memoize_func_attrs(cache: Cache):
 
     assert memoized.cache is cache
     assert memoized.uncached is original
+    assert hasattr(memoized, "cache_key") and callable(memoized.cache_key)
 
     _, mark_x = memoized(value)
     assert mark_x == marker
