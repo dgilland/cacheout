@@ -540,14 +540,14 @@ class Cache:
             prefix = f"{func.__module__}.{func.__name__}:"
             argspec = inspect.getfullargspec(func)
 
-            def get_decorated_key(*args, **kwargs):
+            def cache_key(*args, **kwargs):
                 return _make_memoize_key(func, args, kwargs, marker, typed, argspec, prefix)
 
             if asyncio.iscoroutinefunction(func):
 
                 @wraps(func)
                 async def decorated(*args, **kwargs):
-                    key = get_decorated_key(*args, **kwargs)
+                    key = cache_key(*args, **kwargs)
                     value = self.get(key, default=marker)
 
                     if value is marker:
@@ -560,7 +560,7 @@ class Cache:
 
                 @wraps(func)
                 def decorated(*args, **kwargs):
-                    key = get_decorated_key(*args, **kwargs)
+                    key = cache_key(*args, **kwargs)
                     value = self.get(key, default=marker)
 
                     if value is marker:
@@ -570,7 +570,7 @@ class Cache:
                     return value
 
             decorated.cache = self
-            decorated.cache_key = get_decorated_key
+            decorated.cache_key = cache_key
             decorated.uncached = func
 
             return decorated
