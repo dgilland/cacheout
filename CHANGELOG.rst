@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+v0.13.0 (2021-04-27)
+--------------------
+
 - Add ``cache_key`` attribute to memoized functions that can be used to generate the cache key used for a given set of function arguments. Thanks johnbergvall_!
 - Fix bug in ``Cache.full`` that would result in an exception if cache created with ``maxsize=None`` like ``Cache(maxsize=None)``. Thanks AllinolCP_!
 - Fix bug in ``Cache.get_many`` that resulted in ``RuntimeError: OrderedDict mutated during iteration`` when cache keys expire during the ``get_many`` call.
