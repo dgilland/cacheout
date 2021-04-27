@@ -2,6 +2,8 @@ Changelog
 =========
 
 
+- Add ``cache_key`` attribute to memoized functions that can be used to generate the cache key used for a given set of function arguments. Thanks johnbergvall_!
+- Fix bug in ``Cache.full`` that would result in an exception if cache created with ``maxsize=None`` like ``Cache(maxsize=None)``. Thanks AllinolCP_!
 - Fix bug in ``Cache.get_many`` that resulted in ``RuntimeError: OrderedDict mutated during iteration`` when cache keys expire during the ``get_many`` call.
 - Remove ``default`` argument from ``Cache.get_many``. A default value on missing cache key was only ever returned if a list of keys was passed in and those keys happened to expire during the ``get_many`` call. **breaking change**
 
@@ -140,3 +142,7 @@ v0.1.0 (2018-01-28)
 -------------------
 
 - Add ``Cache`` class.
+
+
+.. _johnbergvall: https://github.com/johnbergvall
+.. _AllinolCP: https://github.com/AllinolCP

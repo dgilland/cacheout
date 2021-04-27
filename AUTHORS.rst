@@ -11,4 +11,5 @@ Lead
 Contributors
 ------------
 
-None
+- John Bergvall , `johnbergvall@github <https://github.com/johnbergvall>`_
+- AllinolCP, `AllinolCP@github <https://github.com/AllinolCP>`_
