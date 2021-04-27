@@ -322,8 +322,12 @@ class Cache:
             items: Mapping of cache key/values to set.
             ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`.
         """
+        with self._lock:
+            self._set_many(items, ttl=ttl)
+
+    def _set_many(self, items: t.Mapping, ttl: t.Optional[T_TTL] = None) -> None:
         for key, value in items.items():
-            self.set(key, value, ttl=ttl)
+            self._set(key, value, ttl=ttl)
 
     def delete(self, key: t.Hashable) -> int:
         """
@@ -372,12 +376,16 @@ class Cache:
         Returns:
             int: Number of cache keys deleted.
         """
+        with self._lock:
+            return self._delete_many(iteratee)
+
+    def _delete_many(self, iteratee: T_FILTER) -> int:
         count = 0
         with self._lock:
             # Convert to list since we're going to be deleting keys as we iterate.
             keys = list(self._filter_keys(iteratee))
             for key in keys:
-                count += self.delete(key)
+                count += self._delete(key)
         return count
 
     def delete_expired(self) -> int:
