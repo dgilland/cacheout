@@ -2,6 +2,10 @@ Changelog
 =========
 
 
+- Fix bug in ``Cache.get_many`` that resulted in ``RuntimeError: OrderedDict mutated during iteration`` when cache keys expire during the ``get_many`` call.
+- Remove ``default`` argument from ``Cache.get_many``. A default value on missing cache key was only ever returned if a list of keys was passed in and those keys happened to expire during the ``get_many`` call. **breaking change**
+
+
 v0.12.1 (2021-04-19)
 --------------------
 

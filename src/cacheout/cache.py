@@ -229,7 +229,7 @@ class Cache:
 
         return value
 
-    def get_many(self, iteratee: T_FILTER, default: t.Any = None) -> dict:
+    def get_many(self, iteratee: T_FILTER) -> dict:
         """
         Return many cache values as a ``dict`` of key/value pairs filtered by an `iteratee`.
 
@@ -242,10 +242,19 @@ class Cache:
 
         Args:
             iteratee: Iteratee to filter by.
-            default: Value to return if key doesn't exist. Defaults to ``None``.
         """
         with self._lock:
-            return {key: self.get(key, default=default) for key in self._filter(iteratee)}
+            return self._get_many(iteratee)
+
+    def _get_many(self, iteratee: T_FILTER) -> dict:
+        result = {}
+        # Convert to list since some keys may get deleted due to expiring.
+        keys = list(self._filter_keys(iteratee))
+        for key in keys:
+            value = self.get(key, default=UNSET)
+            if value is not UNSET:
+                result[key] = value
+        return result
 
     def add(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
         """
@@ -366,7 +375,7 @@ class Cache:
         count = 0
         with self._lock:
             # Convert to list since we're going to be deleting keys as we iterate.
-            keys = list(self._filter(iteratee))
+            keys = list(self._filter_keys(iteratee))
             for key in keys:
                 count += self.delete(key)
         return count
@@ -476,7 +485,7 @@ class Cache:
 
         return key, value
 
-    def _filter(self, iteratee: T_FILTER) -> t.Iterator[t.Hashable]:
+    def _filter_keys(self, iteratee: T_FILTER) -> t.Tuple[t.Hashable, ...]:
         # By default, we'll filter against cache storage.
         target: t.Iterable = self._cache
 
@@ -497,7 +506,7 @@ class Cache:
             def filter_by(key):  # type: ignore
                 return key in self._cache
 
-        yield from filter(filter_by, target)
+        return tuple(key for key in target if filter_by(key))
 
     def memoize(self, *, ttl: t.Optional[T_TTL] = None, typed: bool = False) -> T_DECORATOR:
         """

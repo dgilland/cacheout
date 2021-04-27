@@ -202,6 +202,44 @@ def test_cache_get_many(
     assert cache.get_many(iteratee) == expected
 
 
+@parametrize(
+    "items, iteratee, expected",
+    [
+        (
+            {"a_1": 1, "a_2": 2, "bcd": 3, "bed": 4, "12345": 5},
+            ["a_1", "12345"],
+            {"a_1": 1, "12345": 5},
+        ),
+        (
+            {"a_1": 1, "a_2": 2, "bcd": 3, "bed": 4, "12345": 5},
+            "a_*",
+            {"a_1": 1, "a_2": 2},
+        ),
+        (
+            {"a_1": 1, "a_2": 2, "bcd": 3, "bed": 4, "12345": 5},
+            re.compile(r"\d"),
+            {"12345": 5},
+        ),
+        (
+            {"a_1": 1, "a_2": 2, "bcd": 3, "bed": 4, "12345": 5},
+            lambda key: key.startswith("b") and key.endswith("d"),
+            {"bcd": 3, "bed": 4},
+        ),
+    ],
+)
+def test_cache_get_many__ttl_expires_during_call(
+    items: dict, iteratee: t.Union[list, str, t.Pattern, t.Callable], expected: dict
+):
+    """Test that cache.get_many() returns without error when cache keys expire during call."""
+    cache = Cache(ttl=1, timer=lambda: 0)
+
+    cache.set_many(items)
+    assert cache.get_many(iteratee) == expected
+
+    cache.timer = lambda: 100
+    assert cache.get_many(iteratee) == {}
+
+
 def test_cache_delete(cache: Cache):
     """Test that cache.delete() removes a cache key."""
     key, value = ("key", "value")
