@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+- Minor optimization in ``Cache.get_many|delete_many``.
+
+
 v0.13.0 (2021-04-27)
 --------------------
 

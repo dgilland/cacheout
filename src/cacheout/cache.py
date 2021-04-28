@@ -248,8 +248,7 @@ class Cache:
 
     def _get_many(self, iteratee: T_FILTER) -> dict:
         result = {}
-        # Convert to list since some keys may get deleted due to expiring.
-        keys = list(self._filter_keys(iteratee))
+        keys = self._filter_keys(iteratee)
         for key in keys:
             value = self.get(key, default=UNSET)
             if value is not UNSET:
@@ -382,8 +381,7 @@ class Cache:
     def _delete_many(self, iteratee: T_FILTER) -> int:
         count = 0
         with self._lock:
-            # Convert to list since we're going to be deleting keys as we iterate.
-            keys = list(self._filter_keys(iteratee))
+            keys = self._filter_keys(iteratee)
             for key in keys:
                 count += self._delete(key)
         return count
@@ -493,7 +491,7 @@ class Cache:
 
         return key, value
 
-    def _filter_keys(self, iteratee: T_FILTER) -> t.Tuple[t.Hashable, ...]:
+    def _filter_keys(self, iteratee: T_FILTER) -> t.List[t.Hashable]:
         # By default, we'll filter against cache storage.
         target: t.Iterable = self._cache
 
@@ -514,7 +512,7 @@ class Cache:
             def filter_by(key):  # type: ignore
                 return key in self._cache
 
-        return tuple(key for key in target if filter_by(key))
+        return [key for key in target if filter_by(key)]
 
     def memoize(self, *, ttl: t.Optional[T_TTL] = None, typed: bool = False) -> T_DECORATOR:
         """
