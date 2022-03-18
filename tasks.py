@@ -141,8 +141,9 @@ def docs(ctx, serve=False, bind="127.0.0.1", port=8000):
 @task
 def build(ctx):
     """Build Python package."""
+    run("pip install python-dateutil")
+    run("python3 -m pip install types-python-dateutil")
     run("rm -rf dist build docs/_build")
-    run("python setup.py -q sdist bdist_wheel")
 
 
 @task

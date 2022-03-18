@@ -102,3 +102,7 @@ dmypy.json
 .pydevproject
 .idea
 .DS_Store
+
+Pipfile*
+.python-version
+pyvenv.cfg

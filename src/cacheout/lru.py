@@ -14,9 +14,11 @@ class LRUCache(Cache):
     that only moves entries on ``set()``.
     """
 
-    def get(self, key: t.Hashable, default: t.Any = None) -> t.Any:
+    def get(
+        self, key: t.Hashable, default: t.Any = None, path_cache: t.Optional[str] = None
+    ) -> t.Any:
         with self._lock:
-            value = super().get(key, default=default)
+            value = super().get(key, default=default, path_cache=path_cache)
             if key in self._cache:
                 self._cache.move_to_end(key)
             return value

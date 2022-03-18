@@ -13,3 +13,4 @@ Contributors
 
 - John Bergvall , `johnbergvall@github <https://github.com/johnbergvall>`_
 - AllinolCP, `AllinolCP@github <https://github.com/AllinolCP>`_
+- RoodRepo, `roodrepo@github <https://github.com/roodrepo>`_

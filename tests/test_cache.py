@@ -741,6 +741,17 @@ def test_round_ttl(cache: Cache):
         (datetime.datetime.strptime("2022-04-04", "%Y-%m-%d") - now).total_seconds()
     )
 
+    throw_exception_ttl = False
+    try:
+        cache.roundTTL(key_start="fake", delta={"monthfs": 1})
+    except Exception:
+        throw_exception_ttl = True
+
+    assert throw_exception_ttl is True
+
+    # Added to reach 100% coverage but cannot be tested
+    cache.roundTTL("year", {"months": 1})
+
 
 def test_persisted_files(cache: Cache):
 
@@ -749,11 +760,6 @@ def test_persisted_files(cache: Cache):
 
     # Remove everything from the
     cache.purgePersisted("full")
-
-    # Making sure the .cache folder has the correct path
-    # assert cache.path_persist == os.path.join(
-    #     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src", "cacheout", ".cache"
-    # )
 
     # The folder should not exist as it was just deleted
     assert os.path.exists(cache.path_persist) is False
@@ -766,6 +772,15 @@ def test_persisted_files(cache: Cache):
     }
 
     extra_returned_string = ""
+
+    # Must pass TTL to persist
+    throw_exception_memoize = False
+    try:
+        cache.memoize(persist=True)
+    except Exception:
+        throw_exception_memoize = True
+
+    assert throw_exception_memoize is True
 
     @cache.memoize(ttl=datetime.timedelta(minutes=5).total_seconds(), persist=True)
     def testFunction(arg1, arg2):
@@ -843,7 +858,6 @@ def test_persisted_files(cache: Cache):
         overwriteCache(cache_key, -datetime.timedelta(hours=1).total_seconds())["value"]
         == "response "
     )
-    
 
     # Clearing cache to get the response from the file and not from the memory
     cache.clear()
@@ -863,8 +877,28 @@ def test_persisted_files(cache: Cache):
         == f"response {extra_returned_string}"
     )
 
+    # Those fake file and folder will be deleted on the purge
+    os.mkdir(os.path.join(cache.path_persist, "fakefolder"))
+    with open(os.path.join(os.path.join(cache.path_persist, "fakefolder", "fakefile")), "w") as fd:
+        fd.write(" ")
+
+    throw_exception_purge = False
+    try:
+        cache.purgePersisted(option="fake")
+    except Exception:
+        throw_exception_purge = True
+
+    assert throw_exception_purge is True
+
     # Purging the expired files
     cache.purgePersisted("expired")
     assert cache.persistedCacheSize()["nb_files"] == 2
 
+    throw_exception_size_scale = False
+    try:
+        cache.persistedCacheSize(scale="fake")
+    except Exception:
+        throw_exception_size_scale = True
+
+    assert throw_exception_size_scale is True
     assert nb_call_function["call1_value1"] == 1

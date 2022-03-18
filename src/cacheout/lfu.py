@@ -36,16 +36,24 @@ class LFUCache(Cache):
         # keys first (i.e. keys with a higher count).
         self._access_counts[key] -= 1
 
-    def get(self, key: t.Hashable, default: t.Any = None) -> t.Any:
+    def get(
+        self, key: t.Hashable, default: t.Any = None, path_cache: t.Optional[str] = None
+    ) -> t.Any:
         with self._lock:
-            value = super().get(key, default=default)
+            value = super().get(key, default=default, path_cache=path_cache)
             if key in self._cache:
                 self._touch(key)
             return value
 
     get.__doc__ = Cache.get.__doc__
 
-    def set(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
+    def set(
+        self,
+        key: t.Hashable,
+        value: t.Any,
+        ttl: t.Optional[T_TTL] = None,
+        path_cache: t.Optional[str] = None,
+    ) -> None:
         with self._lock:
             super().set(key, value, ttl=ttl)
             self._touch(key)

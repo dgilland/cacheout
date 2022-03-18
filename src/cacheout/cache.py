@@ -61,6 +61,7 @@ class Cache:
     _cache: OrderedDict
     _expire_times: t.Dict[t.Hashable, T_TTL]
     _lock: RLock
+    _path_persist: str
 
     def __init__(
         self,
@@ -211,6 +212,7 @@ class Cache:
                 it will take precedence over :attr:`missing` and be used as the return value. If
                 `default` is callable, it will function like :attr:`missing` and its return value
                 will be set for the cache `key`. Defaults to ``None``.
+            path_cache:
 
         Returns:
             The cached value.
@@ -284,7 +286,7 @@ class Cache:
         """
         Add cache key/value if it doesn't already exist.
 
-        This method ignores keys that exist which leaves the original TTL in tact.
+        This method ignores keys that exist which leaves the original TTL intact.
 
         Args:
             key: Cache key to add.
@@ -567,25 +569,24 @@ class Cache:
 
     def _deleteExpiredCacheFiles(self, path_folder: str) -> bool:
         folder_content = os.listdir(path_folder)
-        count_content = len(folder_content)
+        count_content: int = len(folder_content)
 
         for filename in folder_content:
-            if filename.startswith("."):
-                count_content -= 1
 
-            else:
-                file_path = os.path.join(path_folder, filename)
-                if os.path.isfile(file_path):
-
+            file_path = os.path.join(path_folder, filename)
+            if os.path.isfile(file_path):
+                try:
                     cache_content = json.loads(open(file_path).read())
                     if self.timer() > cache_content["_expire_time"]:
                         os.unlink(file_path)
                         count_content -= 1
+                except Exception:
+                    count_content -= 1
 
-                elif os.path.isdir(file_path):
-                    is_folder_deleted = self._deleteExpiredCacheFiles(file_path)
-                    if is_folder_deleted is True:
-                        count_content -= 1
+            elif os.path.isdir(file_path):
+                is_folder_deleted = self._deleteExpiredCacheFiles(file_path)
+                if is_folder_deleted is True:
+                    count_content -= 1
 
         if count_content == 0:
             shutil.rmtree(path_folder)
@@ -629,7 +630,6 @@ class Cache:
 
     def purgePersisted(self, option: str = "expired") -> None:
         """
-
         :param option: full / expired
         :return:
         """
@@ -638,13 +638,12 @@ class Cache:
         if option not in accepted_options:
             raise ValueError(f'"option" must be one of the following values: {accepted_options}')
 
-        path_to_cache = self.path_persist
-        if os.path.exists(path_to_cache):
+        if os.path.exists(self.path_persist):
             if option == "full":
-                shutil.rmtree(path_to_cache)
+                shutil.rmtree(self.path_persist)
 
             elif option == "expired":
-                self._deleteExpiredCacheFiles(path_to_cache)
+                self._deleteExpiredCacheFiles(self.path_persist)
 
     def roundTTL(
         self, key_start: str, delta: t.Dict[str, int], now: t.Optional[datetime.datetime] = None
@@ -671,7 +670,6 @@ class Cache:
             "month": 1,
             "day": 1,
         }
-        
 
         if key_start == "week":
             datetime_params["year"] = now.year
@@ -698,21 +696,25 @@ class Cache:
         time_diff: datetime.timedelta = now - time_start
 
         # Custom time delta
-        time_delta = time_start + relativedelta(**delta) - time_start
+        time_delta: datetime.timedelta = (
+            time_start + relativedelta(**delta) - time_start  # type: ignore
+        )
 
-        time_delta = time_delta.total_seconds()
-        delta_coef = 1
-        if time_delta > 0:
+        time_delta_seconds: float = time_delta.total_seconds()
+        delta_coef: int = 1
+        if time_delta_seconds > 0:
             """
             Getting the periodic coefficient.
             Example:
                 reset the cache every 20 minutes of an hour, and the current time is 2:35.
                 The cache will expire in 5 minutes, so coef = 2. coef * 20min - currentMinutes
             """
-            delta_coef = math.ceil(time_diff.total_seconds() / time_delta)
+            delta_coef = math.ceil(time_diff.total_seconds() / time_delta_seconds)
 
         return int(
-            (time_start + datetime.timedelta(seconds=delta_coef * time_delta) - now).total_seconds()
+            (
+                time_start + datetime.timedelta(seconds=delta_coef * time_delta_seconds) - now
+            ).total_seconds()
         )
 
     def _getPathCache(self, key: str) -> str:
@@ -843,7 +845,6 @@ def _make_memoize_key(
 
     if args:
         key_args += tuple(type(arg) if hasattr(arg, "__dict__") else arg for arg in args)
-        # key_args += args
 
     # if kwargs:
     #     # Separate args and kwargs with marker to avoid ambiguous cases where args provided might
