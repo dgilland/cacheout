@@ -282,12 +282,39 @@ Calculate TTL based on fixed periods ``cache.roundTTL``:
     now = datetime.datetime.strptime("2022-03-18 11:35", "%Y-%m-%d %H:%M")
 
     ttl_end_of_current_hour = cache.roundTTL("hour", {"hours": 1}, now=now)
+    assert ttl_end_of_current_hour == int(
+        (datetime.datetime.strptime("2022-03-18 12:00", "%Y-%m-%d %H:%M") - now).total_seconds()
+    )
+
     ttl_in_3_hours_from_start_of_current_hour = cache.roundTTL("hour", {"hours": 3}, now=now)
+    assert ttl_in_3_hours_from_start_of_current_hour == int(
+        (datetime.datetime.strptime("2022-03-18 14:00", "%Y-%m-%d %H:%M") - now).total_seconds()
+    )
+
     ttl_every_3_hours_of_a_day = cache.roundTTL("day", {"hours": 3}, now=now)
+    assert ttl_every_3_hours_of_a_day == int(
+        (datetime.datetime.strptime("2022-03-18 12:00", "%Y-%m-%d %H:%M") - now).total_seconds()
+    )
+
     ttl_every_20_mins_of_an_hour = cache.roundTTL("hour", {"minutes": 20}, now=now)
+    assert ttl_every_20_mins_of_an_hour == int(
+        (datetime.datetime.strptime("2022-03-18 11:40", "%Y-%m-%d %H:%M") - now).total_seconds()
+    )
+
     ttl_end_of_every_sunday = cache.roundTTL("week", {"weeks": 1}, now=now)
+    assert ttl_end_of_every_sunday == int(
+        (datetime.datetime.strptime("2022-03-21", "%Y-%m-%d") - now).total_seconds()
+    )
+
     ttl_end_of_every_wednesday = cache.roundTTL("week", {"weeks": 1, "weekday": 2}, now=now)
+    assert ttl_end_of_every_wednesday == int(
+        (datetime.datetime.strptime("2022-03-23", "%Y-%m-%d") - now).total_seconds()
+    )
+
     ttl_end_of_every_month = cache.roundTTL("year", {"months": 1}, now=now)
+    assert ttl_end_of_every_month == int(
+        (datetime.datetime.strptime("2022-04-04", "%Y-%m-%d") - now).total_seconds()
+    )
 
 Persist cache:
 
