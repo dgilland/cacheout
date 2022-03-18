@@ -276,6 +276,7 @@ Manage multiple caches using ``CacheManager``:
         assert len(cache) == 0
 
 Calculate TTL based on fixed periods ``cache.roundTTL``:
+
 .. code-block:: python
 
     now = datetime.datetime.strptime("2022-03-18 11:35", "%Y-%m-%d %H:%M")
@@ -289,13 +290,17 @@ Calculate TTL based on fixed periods ``cache.roundTTL``:
     ttl_end_of_every_month = cache.roundTTL("year", {"months": 1}, now=now)
 
 Persist cache:
+
 .. code-block:: python
+
     @cache.memoize(ttl=cache.roundTTL("hour", {"hours": 1}, persist= True)
     def func(a, b):
         pass
 
 Purge persisted cache ``cache.purgePersisted``:
+
 .. code-block:: python
+
     # Remove everything from the .cache folder
     cache.purgePersisted("full")
 
@@ -303,7 +308,9 @@ Purge persisted cache ``cache.purgePersisted``:
     cache.purgePersisted("expired")
 
 Get size of the cache on disk `` cache.persistedCacheSize``:
+
 .. code-block:: python
+
     cache.persistedCacheSize() # Default: scale= 'Mb'
     cache.persistedCacheSize(scale='Kb') # Default: scale= 'Mb'
     cache.persistedCacheSize(scale='Bytes') # Default: scale= 'Mb'
