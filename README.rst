@@ -275,10 +275,40 @@ Manage multiple caches using ``CacheManager``:
         assert name in cacheman
         assert len(cache) == 0
 
+Calculate TTL based on fixed periods ``cache.roundTTL``:
+.. code-block:: python
+
+    now = datetime.datetime.strptime("2022-03-18 11:35", "%Y-%m-%d %H:%M")
+
+    ttl_end_of_current_hour = cache.roundTTL("hour", {"hours": 1}, now=now)
+    ttl_in_3_hours_from_start_of_current_hour = cache.roundTTL("hour", {"hours": 3}, now=now)
+    ttl_every_3_hours_of_a_day = cache.roundTTL("day", {"hours": 3}, now=now)
+    ttl_every_20_mins_of_an_hour = cache.roundTTL("hour", {"minutes": 20}, now=now)
+    ttl_end_of_every_sunday = cache.roundTTL("week", {"weeks": 1}, now=now)
+    ttl_end_of_every_wednesday = cache.roundTTL("week", {"weeks": 1, "weekday": 2}, now=now)
+    ttl_end_of_every_month = cache.roundTTL("year", {"months": 1}, now=now)
+
+Persist cache:
+.. code-block:: python
+    @cache.memoize(ttl=cache.roundTTL("hour", {"hours": 1}, persist= True)
+    def func(a, b):
+        pass
+
+Purge persisted cache ``cache.purgePersisted``:
+.. code-block:: python
+    # Remove everything from the .cache folder
+    cache.purgePersisted("full")
+
+    # Delete all the files where the expiration date is passed
+    cache.purgePersisted("expired")
+
+Get size of the cache on disk `` cache.persistedCacheSize``:
+.. code-block:: python
+    cache.persistedCacheSize() # Default: scale= 'Mb'
+    cache.persistedCacheSize(scale='Kb') # Default: scale= 'Mb'
+    cache.persistedCacheSize(scale='Bytes') # Default: scale= 'Mb'
 
 For more details, see the full documentation at https://cacheout.readthedocs.io.
-
-
 
 .. |version| image:: https://img.shields.io/pypi/v/cacheout.svg?style=flat-square
     :target: https://pypi.python.org/pypi/cacheout/

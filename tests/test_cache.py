@@ -758,7 +758,7 @@ def test_persisted_files(cache: Cache):
     # Init the timer, otherwise is equal to 0
     cache.configure(timer=time.time)
 
-    # Remove everything from the
+    # Remove everything from the .cache folder
     cache.purgePersisted("full")
 
     # The folder should not exist as it was just deleted
