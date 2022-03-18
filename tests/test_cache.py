@@ -843,6 +843,7 @@ def test_persisted_files(cache: Cache):
         overwriteCache(cache_key, -datetime.timedelta(hours=1).total_seconds())["value"]
         == "response "
     )
+    
 
     # Clearing cache to get the response from the file and not from the memory
     cache.clear()

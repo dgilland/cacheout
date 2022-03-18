@@ -671,6 +671,7 @@ class Cache:
             "month": 1,
             "day": 1,
         }
+        
 
         if key_start == "week":
             datetime_params["year"] = now.year
