@@ -4,22 +4,28 @@ types."""
 import asyncio
 from collections import OrderedDict
 from collections.abc import Mapping
+import datetime
 from decimal import Decimal
 import fnmatch
 from functools import wraps
 import hashlib
 import inspect
+import json
+import math
+import os.path
 import re
+import shutil
 from threading import RLock
 import time
 import typing as t
+
+from dateutil.relativedelta import relativedelta
 
 
 F = t.TypeVar("F", bound=t.Callable[..., t.Any])
 T_DECORATOR = t.Callable[[F], F]
 T_TTL = t.Union[int, float]
 T_FILTER = t.Union[str, t.List[t.Hashable], t.Pattern, t.Callable]
-
 UNSET = object()
 
 
@@ -192,7 +198,9 @@ class Cache:
             return False
         return len(self) >= self.maxsize
 
-    def get(self, key: t.Hashable, default: t.Any = None) -> t.Any:
+    def get(
+        self, key: t.Hashable, default: t.Any = None, path_cache: t.Optional[str] = None
+    ) -> t.Any:
         """
         Return the cache value for `key` or `default` or ``missing(key)`` if it doesn't exist or has
         expired.
@@ -208,9 +216,12 @@ class Cache:
             The cached value.
         """
         with self._lock:
-            return self._get(key, default=default)
+            return self._get(key, default=default, path_cache=path_cache)
 
-    def _get(self, key: t.Hashable, default: t.Any = None) -> t.Any:
+    def _get(
+        self, key: t.Hashable, default: t.Any = None, path_cache: t.Optional[str] = None
+    ) -> t.Any:
+
         try:
             value = self._cache[key]
 
@@ -218,14 +229,28 @@ class Cache:
                 self._delete(key)
                 raise KeyError
         except KeyError:
-            if default is None:
-                default = self.default
+            try:
 
-            if callable(default):
-                value = default(key)
-                self._set(key, value)
-            else:
-                value = default
+                if path_cache is None:
+                    raise Exception
+
+                cache_content = json.loads(open(path_cache).read())
+                if self.timer() > cache_content["_expire_time"]:
+                    raise Exception
+
+                self._expire_times[key] = cache_content["_expire_time"]
+                value = cache_content["value"]
+                self._set(key, cache_content["value"])
+
+            except Exception:
+                if default is None:
+                    default = self.default
+
+                if callable(default):
+                    value = default(key)
+                    self._set(key, value)
+                else:
+                    value = default
 
         return value
 
@@ -285,7 +310,24 @@ class Cache:
         for key, value in items.items():
             self.add(key, value, ttl=ttl)
 
-    def set(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
+    def _persistCache(self, value: t.Any, ttl: T_TTL, path_cache: str) -> None:
+
+        file_content = {
+            "_expire_time": self.timer() + ttl,
+            "_created_time": self.timer(),
+            "value": value,
+        }
+
+        with open(path_cache, "w") as fd:
+            fd.write(json.dumps(file_content))
+
+    def set(
+        self,
+        key: t.Hashable,
+        value: t.Any,
+        ttl: t.Optional[T_TTL] = None,
+        path_cache: t.Optional[str] = None,
+    ) -> None:
         """
         Set cache key/value and replace any previously set cache key.
 
@@ -298,9 +340,15 @@ class Cache:
             ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`.
         """
         with self._lock:
-            self._set(key, value, ttl=ttl)
+            self._set(key, value, ttl=ttl, path_cache=path_cache)
 
-    def _set(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
+    def _set(
+        self,
+        key: t.Hashable,
+        value: t.Any,
+        ttl: t.Optional[T_TTL] = None,
+        path_cache: t.Optional[str] = None,
+    ) -> None:
         if ttl is None:
             ttl = self.ttl
 
@@ -312,6 +360,9 @@ class Cache:
 
         if ttl and ttl > 0:
             self._expire_times[key] = self.timer() + ttl
+
+            if path_cache is not None:
+                self._persistCache(value, ttl=ttl, path_cache=path_cache)
 
     def set_many(self, items: t.Mapping, ttl: t.Optional[T_TTL] = None) -> None:
         """
@@ -514,7 +565,190 @@ class Cache:
 
         return [key for key in target if filter_by(key)]
 
-    def memoize(self, *, ttl: t.Optional[T_TTL] = None, typed: bool = False) -> T_DECORATOR:
+    def _deleteExpiredCacheFiles(self, path_folder: str) -> bool:
+        folder_content = os.listdir(path_folder)
+        count_content = len(folder_content)
+
+        for filename in folder_content:
+            if filename.startswith("."):
+                count_content -= 1
+
+            else:
+                file_path = os.path.join(path_folder, filename)
+                if os.path.isfile(file_path):
+
+                    cache_content = json.loads(open(file_path).read())
+                    if self.timer() > cache_content["_expire_time"]:
+                        os.unlink(file_path)
+                        count_content -= 1
+
+                elif os.path.isdir(file_path):
+                    is_folder_deleted = self._deleteExpiredCacheFiles(file_path)
+                    if is_folder_deleted is True:
+                        count_content -= 1
+
+        if count_content == 0:
+            shutil.rmtree(path_folder)
+            return True
+
+        return False
+
+    def persistedCacheSize(self, scale: str = "Mb") -> dict:
+
+        scale_conversion = {
+            "Bytes": 1,
+            "Kb": 1000,
+            "Mb": 1000000,
+        }
+
+        if scale not in scale_conversion:
+            raise ValueError(
+                f'"scale" must be one of the following values: {scale_conversion.keys()}'
+            )
+
+        path_to_cache = self.path_persist
+        total_size = 0
+        nb_files = 0
+        for dirpath, _, filenames in os.walk(path_to_cache):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                # skip if it is symbolic link
+                if not os.path.islink(fp):
+                    total_size += os.path.getsize(fp)
+                    nb_files += 1
+
+        return {"size": total_size / scale_conversion[scale], "scale": scale, "nb_files": nb_files}
+
+    @property
+    def path_persist(self):
+        try:
+            return self._path_persist
+        except Exception:
+            self._path_persist = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cache")
+            return self._path_persist
+
+    def purgePersisted(self, option: str = "expired") -> None:
+        """
+
+        :param option: full / expired
+        :return:
+        """
+
+        accepted_options = ("full", "expired")
+        if option not in accepted_options:
+            raise ValueError(f'"option" must be one of the following values: {accepted_options}')
+
+        path_to_cache = self.path_persist
+        if os.path.exists(path_to_cache):
+            if option == "full":
+                shutil.rmtree(path_to_cache)
+
+            elif option == "expired":
+                self._deleteExpiredCacheFiles(path_to_cache)
+
+    def roundTTL(
+        self, key_start: str, delta: t.Dict[str, int], now: t.Optional[datetime.datetime] = None
+    ) -> T_TTL:
+        """
+        Rounding the remaining TTL based on a specific period: every month / every day / every hour.
+
+        / every 20 minutes of an hour ...
+        :param key_start: Accepted values are 'year', 'month', week, 'day', 'hour', 'minute'
+        :param delta: Any parameter for the function relativedelta
+        :return: Number of seconds until expiration
+        More info on relativedelta (https://dateutil.readthedocs.io/en/stable/relativedelta.html)
+        """
+
+        accepted_keys: t.Tuple[str, ...] = ("year", "month", "week", "day", "hour", "minute")
+        if key_start not in accepted_keys:
+            raise ValueError(f"keyStart must be on of the following values: {accepted_keys}")
+
+        if now is None:
+            now = datetime.datetime.now()
+
+        # Init params to always have a correct date with year, month & day
+        datetime_params: t.Dict[str, int] = {
+            "month": 1,
+            "day": 1,
+        }
+
+        if key_start == "week":
+            datetime_params["year"] = now.year
+            weekday = 0
+            if "weekday" in delta:
+                weekday = delta["weekday"]
+                del delta["weekday"]
+            time_start: datetime.datetime = datetime.datetime(
+                **datetime_params  # type: ignore
+            ) + relativedelta(weekday=weekday, weeks=-1)
+        else:
+            # Preparing the parameters of the datetime to get the beginning of the period.
+            # For example, if we want to check every hour (key_start= 'hour'),
+            # we need to get the datetime of the beginning of the current hour
+            for key in ("year", "month", "day", "hour", "minute"):
+                datetime_params[key] = getattr(now, key)
+                if key == key_start:
+                    break
+
+            # Datetime we count from
+            time_start: datetime.datetime = datetime.datetime(**datetime_params)  # type: ignore
+
+        # Elapsed time
+        time_diff: datetime.timedelta = now - time_start
+
+        # Custom time delta
+        time_delta = time_start + relativedelta(**delta) - time_start
+
+        time_delta = time_delta.total_seconds()
+        delta_coef = 1
+        if time_delta > 0:
+            """
+            Getting the periodic coefficient.
+            Example:
+                reset the cache every 20 minutes of an hour, and the current time is 2:35.
+                The cache will expire in 5 minutes, so coef = 2. coef * 20min - currentMinutes
+            """
+            delta_coef = math.ceil(time_diff.total_seconds() / time_delta)
+
+        return int(
+            (time_start + datetime.timedelta(seconds=delta_coef * time_delta) - now).total_seconds()
+        )
+
+    def _getPathCache(self, key: str) -> str:
+        """
+
+        :param key: Cache key with the function name, module and hashed arguments
+        :return: Path of the cache file
+        """
+
+        # Part0 is the path and part1 is the filename
+        # For better indexing, each function has its own cache folder instead
+        split_key = key.split(":")
+
+        path_cache = split_key[0].split(".")
+
+        # The main cache folder is in the package directory, so it will be deleted if uninstalled
+        path_to_cache = self.path_persist
+        if os.path.exists(path_to_cache) is False:
+            os.mkdir(path_to_cache)
+
+        final_path = os.path.join(path_to_cache, *path_cache)
+
+        # Creating the folders' architecture if not already existing
+        if os.path.exists(final_path) is False:
+            sub_path = []
+            for folder in path_cache:
+                sub_path.append(folder)
+
+                _tmp_path = os.path.join(path_to_cache, *sub_path)
+                if os.path.exists(_tmp_path) is False:
+                    os.mkdir(_tmp_path)
+
+        return os.path.join(final_path, f"{split_key[-1]}.json")
+
+    def memoize(
+        self, *, ttl: t.Optional[T_TTL] = None, typed: bool = False, persist: bool = False
+    ) -> T_DECORATOR:
         """
         Decorator that wraps a function with a memoizing callable and works on both synchronous and
         asynchronous functions.
@@ -534,23 +768,30 @@ class Cache:
         """
         marker = (object(),)
 
+        if persist and ttl is None:
+            raise ValueError("ttl must be set when persisting cache")
+
         def decorator(func):
             prefix = f"{func.__module__}.{func.__name__}:"
             argspec = inspect.getfullargspec(func)
 
             def cache_key(*args, **kwargs):
-                return _make_memoize_key(func, args, kwargs, marker, typed, argspec, prefix)
+                return _make_memoize_key(
+                    func, args, kwargs, marker, typed, argspec, prefix, persist
+                )
 
             if asyncio.iscoroutinefunction(func):
 
                 @wraps(func)
                 async def decorated(*args, **kwargs):
                     key = cache_key(*args, **kwargs)
-                    value = self.get(key, default=marker)
+                    path_cache = self._getPathCache(key) if persist is True else None
+
+                    value = self.get(key, default=marker, path_cache=path_cache)
 
                     if value is marker:
                         value = await func(*args, **kwargs)
-                        self.set(key, value, ttl=ttl)
+                        self.set(key, value, ttl=ttl, path_cache=path_cache)
 
                     return value
 
@@ -559,11 +800,13 @@ class Cache:
                 @wraps(func)
                 def decorated(*args, **kwargs):
                     key = cache_key(*args, **kwargs)
-                    value = self.get(key, default=marker)
+                    path_cache = self._getPathCache(key) if persist is True else None
+
+                    value = self.get(key, default=marker, path_cache=path_cache)
 
                     if value is marker:
                         value = func(*args, **kwargs)
-                        self.set(key, value, ttl=ttl)
+                        self.set(key, value, ttl=ttl, path_cache=path_cache)
 
                     return value
 
@@ -584,9 +827,10 @@ def _make_memoize_key(
     typed: bool,
     argspec: inspect.FullArgSpec,
     prefix: str,
+    persist: bool,
 ) -> str:
     kwargs = kwargs.copy()
-    key_args: tuple = (func,)
+    key_args: tuple = (func.__name__,)
 
     # Normalize args by moving positional arguments passed in as keyword arguments from kwargs into
     # args. This is so functions like foo(a, b, c) called with foo(1, b=2, c=3) and foo(1, 2, 3) and
@@ -597,13 +841,14 @@ def _make_memoize_key(
                 args = args[:i] + (kwargs.pop(arg),) + args[i:]
 
     if args:
-        key_args += args
+        key_args += tuple(type(arg) if hasattr(arg, "__dict__") else arg for arg in args)
+        # key_args += args
 
-    if kwargs:
-        # Separate args and kwargs with marker to avoid ambiguous cases where args provided might
-        # look like some other args+kwargs combo.
-        key_args += marker
-        key_args += tuple(sorted(kwargs.items()))
+    # if kwargs:
+    #     # Separate args and kwargs with marker to avoid ambiguous cases where args provided might
+    #     # look like some other args+kwargs combo.
+    #     key_args += marker
+    #     key_args += tuple(sorted(kwargs.items()))
 
     if typed and args:
         key_args += tuple(type(arg) for arg in args)
@@ -612,7 +857,10 @@ def _make_memoize_key(
         key_args += tuple(type(val) for _, val in sorted(kwargs.items()))
 
     # Hash everything in key_args and concatenate into a single byte string.
-    raw_key = "".join(str(_hash_value(key_arg)) for key_arg in key_args)
+    if persist:
+        raw_key = "".join(str(key_arg) for key_arg in key_args)
+    else:
+        raw_key = "".join(str(_hash_value(key_arg)) for key_arg in key_args)
 
     # Combine prefix with md5 hash of raw key so that keys are normalized in length.
     return prefix + hashlib.md5(raw_key.encode()).hexdigest()
