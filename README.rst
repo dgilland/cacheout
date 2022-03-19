@@ -348,7 +348,7 @@ Purge persisted cache ``cache.purgePersisted``:
     # Delete all the files where the expiration date is passed
     cache.purgePersisted("expired")
 
-Get size of the cache on disk `` cache.persistedCacheSize``:
+Get size of the cache on disk ``cache.persistedCacheSize``:
 
 .. code-block:: python
 
