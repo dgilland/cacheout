@@ -280,6 +280,8 @@ Calculate TTL based on fixed periods ``RoundTTL.round``:
 .. code-block:: python
 
     from cacheout import RoundTTL
+    import datetime
+
     now = datetime.datetime.strptime("2022-03-18 11:35", "%Y-%m-%d %H:%M")
 
     ttl_end_of_current_hour = RoundTTL.round("hour", {"hours": 1}, now=now)
