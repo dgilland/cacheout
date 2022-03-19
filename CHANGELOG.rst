@@ -4,8 +4,8 @@ Changelog
 v0.14.0 (2022-03-19)
 --------------------
 
-- Add ``roundTTL`` feature to generate automatically the expire time based on a fixed periods.
-- Add dependency on ``python-dateutil`` to calculate intervals
+- Add ``RoundTTl.round`` feature to generate automatically the expire time based on a fixed period.
+- Add dependency on ``python-dateutil`` to calculate intervals.
 - Add ``persist`` feature to store the result in a file when enabled and make it available cross sessions.
 - Add ``purgePersisted`` feature with options "full" and "expired".
 - Add ``persistedCacheSize`` to get the total size of the persisted cache.

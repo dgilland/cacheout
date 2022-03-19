@@ -8,7 +8,7 @@ import typing as t
 
 import pytest
 
-from cacheout import Cache
+from cacheout import Cache, RoundTTL
 
 
 parametrize = pytest.mark.parametrize
@@ -701,56 +701,70 @@ def test_cache_repr(cache: Cache):
 
 
 def test_round_ttl(cache: Cache):
-    """Test that cache.roundTTL returns the correct amount of seconds until end of a specified
+    """Test that RoundTTL.round returns the correct amount of seconds until end of a specified
     period."""
 
     now = datetime.datetime.strptime("2022-03-18 11:35", "%Y-%m-%d %H:%M")
 
-    ttl_end_of_current_hour = cache.roundTTL("hour", {"hours": 1}, now=now)
+    ttl_end_of_current_hour = RoundTTL.round("hour", {"hours": 1}, now=now)
     assert ttl_end_of_current_hour == int(
         (datetime.datetime.strptime("2022-03-18 12:00", "%Y-%m-%d %H:%M") - now).total_seconds()
     )
+    assert ttl_end_of_current_hour == RoundTTL.everyXHoursOfDay(hours=1, now=now)
 
-    ttl_in_3_hours_from_start_of_current_hour = cache.roundTTL("hour", {"hours": 3}, now=now)
+    ttl_in_3_hours_from_start_of_current_hour = RoundTTL.round("hour", {"hours": 3}, now=now)
     assert ttl_in_3_hours_from_start_of_current_hour == int(
         (datetime.datetime.strptime("2022-03-18 14:00", "%Y-%m-%d %H:%M") - now).total_seconds()
     )
 
-    ttl_every_3_hours_of_a_day = cache.roundTTL("day", {"hours": 3}, now=now)
+    ttl_every_3_hours_of_a_day = RoundTTL.round("day", {"hours": 3}, now=now)
     assert ttl_every_3_hours_of_a_day == int(
         (datetime.datetime.strptime("2022-03-18 12:00", "%Y-%m-%d %H:%M") - now).total_seconds()
     )
+    assert ttl_every_3_hours_of_a_day == RoundTTL.everyXHoursOfDay(hours=3, now=now)
 
-    ttl_every_20_mins_of_an_hour = cache.roundTTL("hour", {"minutes": 20}, now=now)
+    ttl_every_20_mins_of_an_hour = RoundTTL.round("hour", {"minutes": 20}, now=now)
     assert ttl_every_20_mins_of_an_hour == int(
         (datetime.datetime.strptime("2022-03-18 11:40", "%Y-%m-%d %H:%M") - now).total_seconds()
     )
+    assert ttl_every_20_mins_of_an_hour == RoundTTL.everyXMinutesOfHour(minutes=20, now=now)
 
-    ttl_end_of_every_sunday = cache.roundTTL("week", {"weeks": 1}, now=now)
+    ttl_end_of_every_sunday = RoundTTL.round("week", {"weeks": 1}, now=now)
     assert ttl_end_of_every_sunday == int(
         (datetime.datetime.strptime("2022-03-21", "%Y-%m-%d") - now).total_seconds()
     )
+    assert ttl_end_of_every_sunday == RoundTTL.everyWhatDayOfWeek(day_name="sunday", now=now)
 
-    ttl_end_of_every_wednesday = cache.roundTTL("week", {"weeks": 1, "weekday": 2}, now=now)
+    ttl_end_of_every_wednesday = RoundTTL.round("week", {"weeks": 1, "weekday": 3}, now=now)
     assert ttl_end_of_every_wednesday == int(
-        (datetime.datetime.strptime("2022-03-23", "%Y-%m-%d") - now).total_seconds()
+        (datetime.datetime.strptime("2022-03-24", "%Y-%m-%d") - now).total_seconds()
     )
+    assert ttl_end_of_every_wednesday == RoundTTL.everyWhatDayOfWeek(day_name="wednesday", now=now)
 
-    ttl_end_of_every_month = cache.roundTTL("year", {"months": 1}, now=now)
+    ttl_end_of_every_month = RoundTTL.round("year", {"months": 1}, now=now)
     assert ttl_end_of_every_month == int(
         (datetime.datetime.strptime("2022-04-04", "%Y-%m-%d") - now).total_seconds()
     )
+    assert ttl_end_of_every_month == RoundTTL.everyXMonths(months=1, now=now)
 
     throw_exception_ttl = False
     try:
-        cache.roundTTL(key_start="fake", delta={"monthfs": 1})
+        RoundTTL.round(key_start="fake", delta={"monthfs": 1})
+    except Exception:
+        throw_exception_ttl = True
+
+    assert throw_exception_ttl is True
+
+    throw_exception_ttl = False
+    try:
+        RoundTTL.everyWhatDayOfWeek(day_name="fake")
     except Exception:
         throw_exception_ttl = True
 
     assert throw_exception_ttl is True
 
     # Added to reach 100% coverage but cannot be tested
-    cache.roundTTL("year", {"months": 1})
+    RoundTTL.round("year", {"months": 1})
 
 
 def test_persisted_files(cache: Cache):
