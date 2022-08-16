@@ -2,6 +2,11 @@ Changelog
 =========
 
 
+- Add support for Python 3.10.
+- Drop support for Python 3.6. Minimum supported version is 3.7.
+- Clarify docs around TTL to make it explicit what time units it uses by default.
+
+
 v0.13.1 (2021-04-28)
 --------------------
 
