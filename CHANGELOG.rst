@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+- Set minimum Python version to 3.7 in setup.cfg.
+
+
 v0.14.0 (2022-08-16)
 --------------------
 
