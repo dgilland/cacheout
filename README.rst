@@ -125,7 +125,7 @@ Provide a global default:
     assert 'missing' in cache3
 
 
-Set the TTL (time-to-live) expiration per entry:
+Set the TTL (time-to-live) expiration (by default, in milliseconds if timer=time.time) per entry:
 
 .. code-block:: python
 
