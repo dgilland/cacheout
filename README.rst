@@ -72,7 +72,7 @@ Let's start with some basic caching by creating a cache object:
     cache = Cache()
 
 
-By default the ``cache`` object will have a maximum size of ``256`` and default TTL expiration turned off. These values can be set with:
+By default the ``cache`` object will have a maximum size of ``256``, default TTL (time-to-live) expiration turned off, TTL timer that uses ``time.time`` (meaning TTL is in seconds), and the default for missing keys as ``None``. These values can be set with:
 
 .. code-block:: python
 
@@ -125,7 +125,7 @@ Provide a global default:
     assert 'missing' in cache3
 
 
-Set the TTL (time-to-live) expiration per entry:
+Set the TTL (time-to-live) expiration per entry (default TTL units are in seconds when ``Cache.timer`` is set to the default ``time.time``; otherwise, the units are determined by the custom timer function):
 
 .. code-block:: python
 

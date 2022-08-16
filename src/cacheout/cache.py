@@ -45,8 +45,9 @@ class Cache:
     Attributes:
         maxsize: Maximum size of cache dictionary. Defaults to ``256``.
         ttl: Default TTL for all cache entries. Defaults to ``0`` which means that entries do not
-            expire.
-        timer: Timer function to use to calculate TTL expiration. Defaults to ``time.time``.
+            expire. Time units are determined by ``timer`` function. Default units are in seconds.
+        timer: Timer function to use to calculate TTL expiration. Defaults to ``time.time`` where
+            TTL units are in seconds.
         default: Default value or function to use in :meth:`get` when key is not found. If callable,
             it will be passed a single argument, ``key``, and its return value will be set for that
             cache key.
@@ -264,7 +265,8 @@ class Cache:
         Args:
             key: Cache key to add.
             value: Cache value.
-            ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`.
+            ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`. Time units are determined
+                by :attr:`timer`.
         """
         with self._lock:
             self._add(key, value, ttl=ttl)
@@ -280,7 +282,8 @@ class Cache:
 
         Args:
             items: Mapping of cache key/values to set.
-            ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`.
+            ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`. Time units are determined
+                by :attr:`timer`.
         """
         for key, value in items.items():
             self.add(key, value, ttl=ttl)
@@ -295,7 +298,8 @@ class Cache:
         Args:
             key: Cache key to set.
             value: Cache value.
-            ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`.
+            ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`. Time units are determined
+                by :attr:`timer`.
         """
         with self._lock:
             self._set(key, value, ttl=ttl)
@@ -319,7 +323,8 @@ class Cache:
 
         Args:
             items: Mapping of cache key/values to set.
-            ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`.
+            ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`. Time units are determined
+                by :attr:`timer`.
         """
         with self._lock:
             self._set_many(items, ttl=ttl)
@@ -527,8 +532,9 @@ class Cache:
         ``<function>.cache`` object using the function accessible at ``<function>.cache_key``
 
         Keyword Args:
-            ttl (int, optional): TTL value. Defaults to ``None`` which uses :attr:`ttl`.
-            typed (bool, optional): Whether to cache arguments of a different type separately. For
+            ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`. Time units
+                are determined by :attr:`timer`.
+            typed: Whether to cache arguments of a different type separately. For
                 example, ``<function>(1)`` and ``<function>(1.0)`` would be treated differently.
                 Defaults to ``False``.
         """
