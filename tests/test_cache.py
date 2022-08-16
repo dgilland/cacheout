@@ -1,5 +1,6 @@
 import asyncio
 import re
+import sys
 import typing as t
 
 import pytest
@@ -476,9 +477,8 @@ def test_cache_memoize_func_attrs(cache: Cache):
     assert mark_z == marker
 
 
-def test_cache_memoize_async(cache: Cache):
+async def test_cache_memoize_async(cache: Cache):
     """Test that cache.memoize() can decorate async functions."""
-    loop = asyncio.get_event_loop()
     marker = 1
 
     @cache.memoize()
@@ -489,25 +489,26 @@ def test_cache_memoize_async(cache: Cache):
 
     assert len(cache) == 0
 
-    result = loop.run_until_complete(func("a"))
+    result = await func("a")
 
     assert result == ("a", 1)
     assert len(cache) == 1
     assert list(cache.values())[0] == ("a", 1)
 
     marker += 1
-    result = loop.run_until_complete(func("a"))
+    result = await func("a")
 
     assert result == ("a", 1)
     assert len(cache) == 1
 
-    result = loop.run_until_complete(func("b"))
+    result = await func("b")
 
     assert result == ("b", 2)
     assert len(cache) == 2
 
 
-def test_cache_memoize_async_runtime_error_regression(cache: Cache):
+@pytest.mark.skipif(sys.version_info[:2] <= (3, 8), reason="test not compatible with python <= 3.8")
+async def test_cache_memoize_async_runtime_error_regression(cache: Cache):
     """
     Test that cache.memoize() doesn't raise RuntimeError.
 
@@ -525,8 +526,7 @@ def test_cache_memoize_async_runtime_error_regression(cache: Cache):
         proc = await asyncio.create_subprocess_exec("python", "--version")
         proc.terminate()
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(func())
+    await func()
 
 
 def test_cache_size(cache: Cache):
