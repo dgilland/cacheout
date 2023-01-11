@@ -442,6 +442,26 @@ class Cache:
         """
         with self._lock:
             return self._expire_times.copy()
+        
+    def item_ttl(self, key: t.Hashable) -> T_TTL:
+        """
+        Returns the remaining time to live of a key that has a TTL.
+
+        Args:
+            key: Cache key to review.
+
+        Returns:
+            float: the remaining time to live of item
+            int: ``-1`` if the key exists but has no associated expire, ``-2`` if key didn't exist.
+        """
+        with self._lock:
+            expire_time = self._expire_times.copy().get(key)
+            if not expire_time:
+                if not self._get(key):
+                    return -2
+                return -1
+            ttl = expire_time - self.timer()
+            return ttl if ttl > 0 else -2
 
     def evict(self) -> int:
         """
