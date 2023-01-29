@@ -326,21 +326,20 @@ def test_cache_delete_expired(cache: Cache, timer: Timer):
     for key in non_ttl_keys:
         assert cache.has(key)
 
- 
+
 def test_cache_get_ttl(cache: Cache, timer: Timer):
     """Test that cache.get_ttl() will return the remaining time to live of a key that has a TTL."""
     cache.set('a', 1, ttl=1)
     cache.set('b', 2, ttl=2)
+    cache.set('c', 3)
 
     assert cache.get_ttl('a') == 1
 
     timer.time = 1
-    
-    assert cache.get_ttl('a') is None
 
-    assert cache.has('a') is False
-    
+    assert cache.get_ttl('a') is None
     assert cache.get_ttl('b') == 1
+    assert cache.get_ttl('c') is None
 
 
 def test_cache_evict(cache: Cache):
