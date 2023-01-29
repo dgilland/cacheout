@@ -443,6 +443,27 @@ class Cache:
         with self._lock:
             return self._expire_times.copy()
 
+    def get_ttl(self, key: t.Hashable) -> t.Optional[T_TTL]:
+        """
+        Return the remaining time to live of a key that has a TTL.
+
+        Args:
+            key: Cache key.
+
+        Returns:
+            The remaining time to live of `key` or ``None`` if the key doesn't exist or has expired.
+        """
+        with self._lock:
+            if not self._has(key):
+                return None
+
+            expire_time = self._expire_times.copy().get(key)
+            if expire_time is None:
+                return None
+
+            ttl = expire_time - self.timer()
+            return ttl
+
     def evict(self) -> int:
         """
         Perform cache eviction per the cache replacement policy:
