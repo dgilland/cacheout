@@ -12,7 +12,7 @@ parametrize = pytest.mark.parametrize
 
 
 class Timer:
-    def __init__(self):
+    def __init__(self) -> None:
         self.time: t.Union[int, float] = 0
 
     def __call__(self) -> t.Union[int, float]:
