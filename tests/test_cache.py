@@ -723,6 +723,10 @@ def test_cache_on_delete(cache: Cache, timer: Timer):
     cache.delete("EXPLICT")
     assert log == f"EXPLICT:1 {EvictedCause.EXPLICIT.value}"
 
+    cache.set("REPLACED", 1)
+    cache.set("REPLACED", 2)
+    assert log == f"REPLACED:1 {EvictedCause.REPLACED.value}"
+
     cache.set("EXPIRED", 1, ttl=1)
     timer.time = 1
     cache.delete_expired()
@@ -733,7 +737,3 @@ def test_cache_on_delete(cache: Cache, timer: Timer):
     cache.set("SIZE", 1)
     cache.set("OVERFLOW", 2)
     assert log == f"SIZE:1 {EvictedCause.SIZE.value}"
-
-    cache.set("REPLACED", 1)
-    cache.set("REPLACED", 2)
-    assert log == f"REPLACED:1 {EvictedCause.REPLACED.value}"

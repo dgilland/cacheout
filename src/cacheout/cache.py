@@ -28,18 +28,17 @@ class EvictedCause(Enum):
     """
     An enum to represent the cause for the evication of a cache entry.
 
-    - EXPLICIT: indicates that the cache entry was explicitly deleted through an explicit operation,
-        such as calling the cache's `delete(key: Hashable)` method.
-    - EXPIRED: indicates that the cache entry was removed because it expired.
-    - SIZE: indicates that the cache entry was removed due to reaching the maximum size limit of the
-        cache.
+    - EXPLICIT: indicates that the cache entry was deleted explicitly.
     - REPLACED: indicates that the entry was replaced with a new value.
+    - EXPIRED: indicates that the cache entry was removed because it expired.
+    - SIZE: indicates that the cache entry was removed
+        because cache has reached the maximum size limit.
     """
 
     EXPLICIT = auto()
+    REPLACED = auto()
     EXPIRED = auto()
     SIZE = auto()
-    REPLACED = auto()
 
 
 class Cache:
@@ -372,11 +371,10 @@ class Cache:
         count = 0
 
         try:
-            if self.on_delete:
-                value = self._cache[key]
-                self.on_delete(key, value, cause)
-
+            value = self._cache[key]
             del self._cache[key]
+            if self.on_delete:
+                self.on_delete(key, value, cause)
             count = 1
         except KeyError:
             pass
