@@ -5,6 +5,7 @@ import asyncio
 from collections import OrderedDict
 from collections.abc import Mapping
 from decimal import Decimal
+from enum import Enum, auto
 import fnmatch
 from functools import wraps
 import hashlib
@@ -21,6 +22,24 @@ T_TTL = t.Union[int, float]
 T_FILTER = t.Union[str, t.List[t.Hashable], t.Pattern, t.Callable]
 
 UNSET = object()
+
+
+class EvictedCause(Enum):
+    """
+    An enum to represent the cause for the evication of a cache entry.
+
+    - EXPLICIT: indicates that the cache entry was explicitly deleted through an explicit operation,
+        such as calling the cache's `delete(key: Hashable)` method.
+    - EXPIRED: indicates that the cache entry was removed because it expired.
+    - SIZE: indicates that the cache entry was removed due to reaching the maximum size limit of the
+        cache.
+    - REPLACED: indicates that the entry was replaced with a new value.
+    """
+
+    EXPLICIT = auto()
+    EXPIRED = auto()
+    SIZE = auto()
+    REPLACED = auto()
 
 
 class Cache:
@@ -51,6 +70,7 @@ class Cache:
         default: Default value or function to use in :meth:`get` when key is not found. If callable,
             it will be passed a single argument, ``key``, and its return value will be set for that
             cache key.
+        on_delete: Callback which will be excuted when a cache entry is evicted.
     """
 
     _cache: OrderedDict
@@ -63,11 +83,13 @@ class Cache:
         ttl: T_TTL = 0,
         timer: t.Callable[[], T_TTL] = time.time,
         default: t.Any = None,
+        on_delete: t.Optional[t.Callable[[t.Hashable, t.Any, EvictedCause], None]] = None,
     ):
         self.maxsize = maxsize
         self.ttl = ttl
         self.timer = timer
         self.default = default
+        self.on_delete = on_delete
 
         self.setup()
         self.configure(maxsize=maxsize, ttl=ttl, timer=timer, default=default)
@@ -216,7 +238,7 @@ class Cache:
             value = self._cache[key]
 
             if self.expired(key):
-                self._delete(key)
+                self._delete(key, EvictedCause.EXPIRED)
                 raise KeyError
         except KeyError:
             if default is None:
@@ -311,7 +333,7 @@ class Cache:
         if key not in self._cache:
             self.evict()
 
-        self._delete(key)
+        self._delete(key, EvictedCause.REPLACED)
         self._cache[key] = value
 
         if ttl and ttl > 0:
@@ -344,12 +366,16 @@ class Cache:
             int: ``1`` if key was deleted, ``0`` if key didn't exist.
         """
         with self._lock:
-            return self._delete(key)
+            return self._delete(key, EvictedCause.EXPLICIT)
 
-    def _delete(self, key: t.Hashable) -> int:
+    def _delete(self, key: t.Hashable, cause: EvictedCause) -> int:
         count = 0
 
         try:
+            if self.on_delete:
+                value = self._cache[key]
+                self.on_delete(key, value, cause)
+
             del self._cache[key]
             count = 1
         except KeyError:
@@ -388,7 +414,7 @@ class Cache:
         with self._lock:
             keys = self._filter_keys(iteratee)
             for key in keys:
-                count += self._delete(key)
+                count += self._delete(key, EvictedCause.EXPLICIT)
         return count
 
     def delete_expired(self) -> int:
@@ -413,7 +439,7 @@ class Cache:
 
         for key, expiration in expire_times.items():
             if expiration <= expires_on:
-                count += self._delete(key)
+                count += self._delete(key, EvictedCause.EXPIRED)
         return count
 
     def expired(self, key: t.Hashable, expires_on: t.Optional[T_TTL] = None) -> bool:
@@ -513,7 +539,7 @@ class Cache:
             raise KeyError("popitem(): cache is empty")
 
         value = self._cache[key]
-        self._delete(key)
+        self._delete(key, EvictedCause.SIZE)
 
         return key, value
 
