@@ -712,6 +712,7 @@ def test_cache_repr(cache: Cache):
 
 
 def test_cache_on_delete(cache: Cache, timer: Timer):
+    """Test that on_delete(cache) callback."""
     log = ""
 
     def on_delete(key, value, cause):
