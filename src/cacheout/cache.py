@@ -510,7 +510,7 @@ class Cache:
         with self._lock:
             while self.full():
                 try:
-                    self._popitem()
+                    self._popitem(EvictionCause.SIZE)
                 except KeyError:  # pragma: no cover
                     break
                 count += 1
@@ -528,16 +528,16 @@ class Cache:
         """
         with self._lock:
             self._delete_expired()
-            return self._popitem()
+            return self._popitem(EvictionCause.EXPLICIT)
 
-    def _popitem(self):
+    def _popitem(self, cause: EvictionCause):
         try:
             key = next(self)
         except StopIteration:
             raise KeyError("popitem(): cache is empty")
 
         value = self._cache[key]
-        self._delete(key, EvictionCause.SIZE)
+        self._delete(key, cause)
 
         return key, value
 
