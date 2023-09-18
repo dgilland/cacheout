@@ -3,7 +3,7 @@
 from collections import Counter
 import typing as t
 
-from .cache import T_TTL, Cache, EvictedCause
+from .cache import T_TTL, Cache, EvictionCause
 
 
 class LFUCache(Cache):
@@ -59,7 +59,7 @@ class LFUCache(Cache):
 
     add.__doc__ = Cache.add.__doc__
 
-    def _delete(self, key: t.Hashable, cause: EvictedCause) -> int:
+    def _delete(self, key: t.Hashable, cause: EvictionCause) -> int:
         count = super()._delete(key, cause)
 
         try:

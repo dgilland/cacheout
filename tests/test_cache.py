@@ -5,7 +5,7 @@ import typing as t
 
 import pytest
 
-from cacheout import Cache, EvictedCause
+from cacheout import Cache, EvictionCause
 
 
 parametrize = pytest.mark.parametrize
@@ -722,19 +722,19 @@ def test_cache_on_delete(cache: Cache, timer: Timer):
     cache.on_delete = on_delete
     cache.set("EXPLICT", 1)
     cache.delete("EXPLICT")
-    assert log == f"EXPLICT:1 {EvictedCause.EXPLICIT.value}"
+    assert log == f"EXPLICT:1 {EvictionCause.EXPLICIT.value}"
 
     cache.set("REPLACED", 1)
     cache.set("REPLACED", 2)
-    assert log == f"REPLACED:1 {EvictedCause.REPLACED.value}"
+    assert log == f"REPLACED:1 {EvictionCause.REPLACED.value}"
 
     cache.set("EXPIRED", 1, ttl=1)
     timer.time = 1
     cache.delete_expired()
-    assert log == f"EXPIRED:1 {EvictedCause.EXPIRED.value}"
+    assert log == f"EXPIRED:1 {EvictionCause.EXPIRED.value}"
 
     cache.clear()
     cache.maxsize = 1
     cache.set("SIZE", 1)
     cache.set("OVERFLOW", 2)
-    assert log == f"SIZE:1 {EvictedCause.SIZE.value}"
+    assert log == f"SIZE:1 {EvictionCause.SIZE.value}"
