@@ -28,17 +28,19 @@ class EvictionCause(Enum):
     """
     An enum to represent the cause for the eviction of a cache entry.
 
-    - EXPLICIT: indicates that the cache entry was deleted explicitly.
-    - REPLACED: indicates that the entry was replaced with a new value.
+    - DELETE: indicates that the cache entry was deleted by delete() or delete_many() explicitly.
+    - SET: indicates that the entry was replaced with a new value by set().
     - EXPIRED: indicates that the cache entry was removed because it expired.
-    - SIZE: indicates that the cache entry was removed
-        because cache has reached the maximum size limit.
+    - FULL: indicates that the cache entry was removed because cache has been full
+        (reached the maximum size limit).
+    - POPITEM: indicates that the cache entry was deleted by popitem().
     """
 
-    EXPLICIT = auto()
-    REPLACED = auto()
+    DELETE = auto()
+    SET = auto()
     EXPIRED = auto()
-    SIZE = auto()
+    FULL = auto()
+    POPITEM = auto()
 
 
 class Cache:
@@ -332,7 +334,7 @@ class Cache:
         if key not in self._cache:
             self.evict()
 
-        self._delete(key, EvictionCause.REPLACED)
+        self._delete(key, EvictionCause.SET)
         self._cache[key] = value
 
         if ttl and ttl > 0:
@@ -365,7 +367,7 @@ class Cache:
             int: ``1`` if key was deleted, ``0`` if key didn't exist.
         """
         with self._lock:
-            return self._delete(key, EvictionCause.EXPLICIT)
+            return self._delete(key, EvictionCause.DELETE)
 
     def _delete(self, key: t.Hashable, cause: EvictionCause) -> int:
         count = 0
@@ -412,7 +414,7 @@ class Cache:
         with self._lock:
             keys = self._filter_keys(iteratee)
             for key in keys:
-                count += self._delete(key, EvictionCause.EXPLICIT)
+                count += self._delete(key, EvictionCause.DELETE)
         return count
 
     def delete_expired(self) -> int:
@@ -510,7 +512,7 @@ class Cache:
         with self._lock:
             while self.full():
                 try:
-                    self._popitem(EvictionCause.SIZE)
+                    self._popitem(EvictionCause.FULL)
                 except KeyError:  # pragma: no cover
                     break
                 count += 1
@@ -528,7 +530,7 @@ class Cache:
         """
         with self._lock:
             self._delete_expired()
-            return self._popitem(EvictionCause.EXPLICIT)
+            return self._popitem(EvictionCause.POPITEM)
 
     def _popitem(self, cause: EvictionCause):
         try:
