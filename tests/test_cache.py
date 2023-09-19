@@ -5,7 +5,7 @@ import typing as t
 
 import pytest
 
-from cacheout import Cache
+from cacheout import Cache, EvictionCause
 
 
 parametrize = pytest.mark.parametrize
@@ -709,3 +709,37 @@ def test_cache_repr(cache: Cache):
     cache.set("c", 3)
 
     assert repr(cache) == "Cache([('a', 1), ('b', 2), ('c', 3)])"
+
+
+def test_cache_on_delete(cache: Cache, timer: Timer):
+    """Test that on_delete(cache) callback."""
+    log = ""
+
+    def on_delete(key, value, cause):
+        nonlocal log
+        log = f"{key}:{value} {cause.value}"
+
+    cache.on_delete = on_delete
+    cache.set("DELETE", 1)
+    cache.delete("DELETE")
+    assert log == f"DELETE:1 {EvictionCause.DELETE.value}"
+
+    cache.set("SET", 1)
+    cache.set("SET", 2)
+    assert log == f"SET:1 {EvictionCause.SET.value}"
+
+    cache.clear()
+    cache.set("POPITEM", 1)
+    cache.popitem()
+    assert log == f"POPITEM:1 {EvictionCause.POPITEM.value}"
+
+    cache.set("EXPIRED", 1, ttl=1)
+    timer.time = 1
+    cache.delete_expired()
+    assert log == f"EXPIRED:1 {EvictionCause.EXPIRED.value}"
+
+    cache.clear()
+    cache.maxsize = 1
+    cache.set("FULL", 1)
+    cache.set("OVERFLOW", 2)
+    assert log == f"FULL:1 {EvictionCause.FULL.value}"
