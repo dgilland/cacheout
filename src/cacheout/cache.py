@@ -26,7 +26,7 @@ UNSET = object()
 
 class RemovalCause(Enum):
     """
-    An enum to represent the cause for the eviction of a cache entry.
+    An enum to represent the cause for the removal of a cache entry.
 
     - DELETE: indicates that the cache entry was deleted by delete() or delete_many() explicitly.
     - SET: indicates that the cache entry was replaced with a new value by set() or set_many().
