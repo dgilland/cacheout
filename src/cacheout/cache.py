@@ -24,9 +24,9 @@ T_FILTER = t.Union[str, t.List[t.Hashable], t.Pattern, t.Callable]
 UNSET = object()
 
 
-class EvictionCause(Enum):
+class RemovalCause(Enum):
     """
-    An enum to represent the cause for the eviction of a cache entry.
+    An enum to represent the cause for the removal of a cache entry.
 
     - DELETE: indicates that the cache entry was deleted by delete() or delete_many() explicitly.
     - SET: indicates that the cache entry was replaced with a new value by set() or set_many().
@@ -84,7 +84,7 @@ class Cache:
         ttl: T_TTL = 0,
         timer: t.Callable[[], T_TTL] = time.time,
         default: t.Any = None,
-        on_delete: t.Optional[t.Callable[[t.Hashable, t.Any, EvictionCause], None]] = None,
+        on_delete: t.Optional[t.Callable[[t.Hashable, t.Any, RemovalCause], None]] = None,
     ):
         self.maxsize = maxsize
         self.ttl = ttl
@@ -239,7 +239,7 @@ class Cache:
             value = self._cache[key]
 
             if self.expired(key):
-                self._delete(key, EvictionCause.EXPIRED)
+                self._delete(key, RemovalCause.EXPIRED)
                 raise KeyError
         except KeyError:
             if default is None:
@@ -334,7 +334,7 @@ class Cache:
         if key not in self._cache:
             self.evict()
 
-        self._delete(key, EvictionCause.SET)
+        self._delete(key, RemovalCause.SET)
         self._cache[key] = value
 
         if ttl and ttl > 0:
@@ -367,9 +367,9 @@ class Cache:
             int: ``1`` if key was deleted, ``0`` if key didn't exist.
         """
         with self._lock:
-            return self._delete(key, EvictionCause.DELETE)
+            return self._delete(key, RemovalCause.DELETE)
 
-    def _delete(self, key: t.Hashable, cause: EvictionCause) -> int:
+    def _delete(self, key: t.Hashable, cause: RemovalCause) -> int:
         count = 0
 
         try:
@@ -414,7 +414,7 @@ class Cache:
         with self._lock:
             keys = self._filter_keys(iteratee)
             for key in keys:
-                count += self._delete(key, EvictionCause.DELETE)
+                count += self._delete(key, RemovalCause.DELETE)
         return count
 
     def delete_expired(self) -> int:
@@ -439,7 +439,7 @@ class Cache:
 
         for key, expiration in expire_times.items():
             if expiration <= expires_on:
-                count += self._delete(key, EvictionCause.EXPIRED)
+                count += self._delete(key, RemovalCause.EXPIRED)
         return count
 
     def expired(self, key: t.Hashable, expires_on: t.Optional[T_TTL] = None) -> bool:
@@ -512,7 +512,7 @@ class Cache:
         with self._lock:
             while self.full():
                 try:
-                    self._popitem(EvictionCause.FULL)
+                    self._popitem(RemovalCause.FULL)
                 except KeyError:  # pragma: no cover
                     break
                 count += 1
@@ -530,9 +530,9 @@ class Cache:
         """
         with self._lock:
             self._delete_expired()
-            return self._popitem(EvictionCause.POPITEM)
+            return self._popitem(RemovalCause.POPITEM)
 
-    def _popitem(self, cause: EvictionCause):
+    def _popitem(self, cause: RemovalCause):
         try:
             key = next(self)
         except StopIteration:

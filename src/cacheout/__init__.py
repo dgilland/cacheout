@@ -2,7 +2,7 @@
 
 __version__ = "0.14.1"
 
-from .cache import Cache, EvictionCause
+from .cache import Cache, RemovalCause
 from .fifo import FIFOCache
 from .lfu import LFUCache
 from .lifo import LIFOCache
