@@ -283,7 +283,7 @@ For more details, see the full documentation at https://cacheout.readthedocs.io.
 .. |version| image:: https://img.shields.io/pypi/v/cacheout.svg?style=flat-square
     :target: https://pypi.python.org/pypi/cacheout/
 
-.. |build| image:: https://img.shields.io/github/workflow/status/dgilland/cacheout/Main/master?style=flat-square
+.. |build| image:: https://img.shields.io/github/actions/workflow/status/dgilland/cacheout/main.yml?branch=master&style=flat-square
     :target: https://github.com/dgilland/cacheout/actions
 
 .. |coveralls| image:: https://img.shields.io/coveralls/dgilland/cacheout/master.svg?style=flat-square
