@@ -15,6 +15,8 @@ from threading import RLock
 import time
 import typing as t
 
+from .stats import Stats, _StatsCounter
+
 
 F = t.TypeVar("F", bound=t.Callable[..., t.Any])
 T_DECORATOR = t.Callable[[F], F]
@@ -72,6 +74,7 @@ class Cache:
             it will be passed a single argument, ``key``, and its return value will be set for that
             cache key.
         on_delete: Callback which will be excuted when a cache entry is evicted.
+        stats: Turn on statistics collection if ``stats`` is True. Defaults to ``False``.
     """
 
     _cache: OrderedDict
@@ -85,12 +88,14 @@ class Cache:
         timer: t.Callable[[], T_TTL] = time.time,
         default: t.Any = None,
         on_delete: t.Optional[t.Callable[[t.Hashable, t.Any, RemovalCause], None]] = None,
+        stats: bool = False,
     ):
         self.maxsize = maxsize
         self.ttl = ttl
         self.timer = timer
         self.default = default
         self.on_delete = on_delete
+        self._stats = stats
 
         self.setup()
         self.configure(maxsize=maxsize, ttl=ttl, timer=timer, default=default)
@@ -99,6 +104,7 @@ class Cache:
         self._cache: OrderedDict = OrderedDict()
         self._expire_times: t.Dict[t.Hashable, T_TTL] = {}
         self._lock = RLock()
+        self._stats_counter = _StatsCounter() if self._stats else None
 
     def configure(
         self,
@@ -196,6 +202,8 @@ class Cache:
     def _clear(self) -> None:
         self._cache.clear()
         self._expire_times.clear()
+        if self._stats_counter:
+            self._stats_counter.reset()
 
     def has(self, key: t.Hashable) -> bool:
         """Return whether cache key exists and hasn't expired."""
@@ -232,7 +240,14 @@ class Cache:
             The cached value.
         """
         with self._lock:
-            return self._get(key, default=default)
+            value = self._get(key, default=default)
+            if self._stats_counter:
+                if value == default:
+                    self._stats_counter.record_misses(1)
+                else:
+                    self._stats_counter.record_hits(1)
+
+            return value
 
     def _get(self, key: t.Hashable, default: t.Any = None) -> t.Any:
         try:
@@ -333,6 +348,8 @@ class Cache:
 
         if key not in self._cache:
             self.evict()
+            if self._stats_counter:
+                self._stats_counter.record_total(1)
 
         self._delete(key, RemovalCause.SET)
         self._cache[key] = value
@@ -378,6 +395,11 @@ class Cache:
             if self.on_delete:
                 self.on_delete(key, value, cause)
             count = 1
+            if self._stats_counter:
+                if cause == RemovalCause.FULL:
+                    self._stats_counter.record_evictions(1)
+                self._stats_counter.record_total(-1)
+
         except KeyError:
             pass
 
@@ -627,6 +649,16 @@ class Cache:
             return decorated
 
         return decorator
+
+    def get_stats(self) -> t.Optional[Stats]:
+        """
+        Return a snapshot of cache statistics.
+
+        Returns:
+            A ``Stats`` object or ``None`` if ``stats`` is ``False``.
+        """
+        with self._lock:
+            return Stats(counter=self._stats_counter) if self._stats_counter else None
 
 
 def _make_memoize_key(
