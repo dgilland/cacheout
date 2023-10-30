@@ -105,22 +105,19 @@ class StatsTracker:
         if not self._enabled or self._paused:
             return
 
-        with self._lock:
-            self._hit_count += count
+        self._hit_count += count
 
     def _inc_misses(self, count: int) -> None:
         if not self._enabled or self._paused:
             return
 
-        with self._lock:
-            self._miss_count += count
+        self._miss_count += count
 
     def _inc_evictions(self, count: int) -> None:
         if not self._enabled or self._paused:
             return
 
-        with self._lock:
-            self._evicted_count += count
+        self._evicted_count += count
 
     def enable(self) -> None:
         """Enable statistics."""
