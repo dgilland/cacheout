@@ -1,14 +1,30 @@
+import copy
 from threading import RLock
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from .cache import Cache  # pragma: no cover
 
 
 class Stats:
-    """An object to represent a snapshot of statistics."""
+    """
+    An object to represent a snapshot of statistics.
 
-    def __init__(self, hits: int, misses: int, evictions: int, total: int) -> None:
+    Attributes:
+        _hits: The number of cache hits.
+        _misses: The number of cache misses.
+        _evictions: The number of cache entries have been evicted.
+        _total_entries: The total number of cache entries.
+    """
+
+    def __init__(
+        self, hits: int = 0, misses: int = 0, evictions: int = 0, total_entries: int = 0
+    ) -> None:
         self._hits = hits
         self._misses = misses
         self._evictions = evictions
-        self._total = total
+        self._total_entries = total_entries
 
     @property
     def hits(self) -> int:
@@ -23,7 +39,7 @@ class Stats:
     @property
     def total_entries(self) -> int:
         """The total number of cache entries."""
-        return self._total
+        return self._total_entries
 
     @property
     def accesses(self) -> int:
@@ -90,34 +106,35 @@ class StatsTracker:
 
     _lock: RLock
 
-    def __init__(self) -> None:
+    def __init__(self, cache: "Cache") -> None:
+        self._cache = cache
+
         self._lock = RLock()
+        self._stats = Stats()
 
-        self._hit_count = 0
-        self._miss_count = 0
-        self._evicted_count = 0
-        self._total_count = 0
-
-        self._enabled = True
+        self._enabled = False
         self._paused = False
 
-    def _inc_hits(self, count: int) -> None:
+    def inc_hits(self, count: int) -> None:
         if not self._enabled or self._paused:
             return
 
-        self._hit_count += count
+        with self._lock:
+            self._stats._hits += count
 
-    def _inc_misses(self, count: int) -> None:
+    def inc_misses(self, count: int) -> None:
         if not self._enabled or self._paused:
             return
 
-        self._miss_count += count
+        with self._lock:
+            self._stats._misses += count
 
-    def _inc_evictions(self, count: int) -> None:
+    def inc_evictions(self, count: int) -> None:
         if not self._enabled or self._paused:
             return
 
-        self._evicted_count += count
+        with self._lock:
+            self._stats._evictions += count
 
     def enable(self) -> None:
         """Enable statistics."""
@@ -151,16 +168,10 @@ class StatsTracker:
     def reset(self) -> None:
         """Clear statistics."""
         with self._lock:
-            self._hit_count = 0
-            self._miss_count = 0
-            self._evicted_count = 0
-            self._total_count = 0
+            self._stats = Stats()
 
     def info(self) -> Stats:
         """Get a snapshot of statistics."""
-        return Stats(
-            hits=self._hit_count,
-            misses=self._miss_count,
-            evictions=self._evicted_count,
-            total=self._total_count,
-        )
+        with self._lock:
+            self._stats._total_entries = len(self._cache)
+            return copy.copy(self._stats)

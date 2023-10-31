@@ -74,8 +74,6 @@ class Cache:
             it will be passed a single argument, ``key``, and its return value will be set for that
             cache key.
         on_delete: Callback which will be excuted when a cache entry is evicted.
-        enable_stats: Turn on statistics collection if ``enable_stats`` is True.
-            Defaults to ``False``.
     """
 
     _cache: OrderedDict
@@ -89,15 +87,13 @@ class Cache:
         timer: t.Callable[[], T_TTL] = time.time,
         default: t.Any = None,
         on_delete: t.Optional[t.Callable[[t.Hashable, t.Any, RemovalCause], None]] = None,
-        enable_stats: bool = False,
     ):
         self.maxsize = maxsize
         self.ttl = ttl
         self.timer = timer
         self.default = default
         self.on_delete = on_delete
-        self._enable_stats = enable_stats
-        self._stats_tracker = StatsTracker()
+        self.stats = StatsTracker(self)
 
         self.setup()
         self.configure(maxsize=maxsize, ttl=ttl, timer=timer, default=default)
@@ -239,9 +235,7 @@ class Cache:
             The cached value.
         """
         with self._lock:
-            value = self._get(key, default=default)
-
-            return value
+            return self._get(key, default=default)
 
     def _get(self, key: t.Hashable, default: t.Any = None) -> t.Any:
         try:
@@ -250,11 +244,9 @@ class Cache:
             if self.expired(key):
                 self._delete(key, RemovalCause.EXPIRED)
                 raise KeyError
-            if self._enable_stats:
-                self._stats_tracker._inc_hits(1)
+            self.stats.inc_hits(1)
         except KeyError:
-            if self._enable_stats:
-                self._stats_tracker._inc_misses(1)
+            self.stats.inc_misses(1)
             if default is None:
                 default = self.default
 
@@ -353,9 +345,6 @@ class Cache:
         if ttl and ttl > 0:
             self._expire_times[key] = self.timer() + ttl
 
-        if self._enable_stats:
-            self._stats_tracker._total_count = len(self)
-
     def set_many(self, items: t.Mapping, ttl: t.Optional[T_TTL] = None) -> None:
         """
         Set multiple cache keys at once.
@@ -394,9 +383,8 @@ class Cache:
             if self.on_delete:
                 self.on_delete(key, value, cause)
             count = 1
-            if self._enable_stats:
-                if cause == RemovalCause.FULL:
-                    self._stats_tracker._inc_evictions(1)
+            if cause == RemovalCause.FULL:
+                self.stats.inc_evictions(1)
         except KeyError:
             pass
 
@@ -404,9 +392,6 @@ class Cache:
             del self._expire_times[key]
         except KeyError:
             pass
-
-        if self._enable_stats:
-            self._stats_tracker._total_count = len(self)
 
         return count
 
@@ -649,10 +634,6 @@ class Cache:
             return decorated
 
         return decorator
-
-    @property
-    def stats(self) -> StatsTracker:
-        return self._stats_tracker
 
 
 def _make_memoize_key(

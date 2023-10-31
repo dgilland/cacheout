@@ -5,7 +5,8 @@ from cacheout import Cache
 
 @pytest.fixture
 def cache() -> Cache:
-    cache = Cache(maxsize=2, enable_stats=True)
+    cache = Cache(maxsize=2)
+    cache.stats.enable()
     cache.add("1", "one")
     cache.add("2", "two")
     cache.add("3", "three")
@@ -46,7 +47,7 @@ def test_reset(cache: Cache):
     assert stats.hit_rate == 1.0
     assert stats.miss_rate == 0.0
     assert stats.eviction_rate == 1.0
-    assert stats.total_entries == 0
+    assert stats.total_entries == 2
 
 
 def test_pause(cache: Cache):
@@ -117,7 +118,7 @@ def test_disable(cache: Cache):
     assert stats.hit_rate == 1.0
     assert stats.miss_rate == 0.0
     assert stats.eviction_rate == 1.0
-    assert stats.total_entries == 0
+    assert stats.total_entries == 2
 
 
 def test_enable(cache: Cache):
