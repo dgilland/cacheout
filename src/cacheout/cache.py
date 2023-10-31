@@ -15,6 +15,8 @@ from threading import RLock
 import time
 import typing as t
 
+from .stats import StatsTracker
+
 
 F = t.TypeVar("F", bound=t.Callable[..., t.Any])
 T_DECORATOR = t.Callable[[F], F]
@@ -91,6 +93,7 @@ class Cache:
         self.timer = timer
         self.default = default
         self.on_delete = on_delete
+        self.stats = StatsTracker(self)
 
         self.setup()
         self.configure(maxsize=maxsize, ttl=ttl, timer=timer, default=default)
@@ -241,7 +244,9 @@ class Cache:
             if self.expired(key):
                 self._delete(key, RemovalCause.EXPIRED)
                 raise KeyError
+            self.stats.inc_hits(1)
         except KeyError:
+            self.stats.inc_misses(1)
             if default is None:
                 default = self.default
 
@@ -378,6 +383,8 @@ class Cache:
             if self.on_delete:
                 self.on_delete(key, value, cause)
             count = 1
+            if cause == RemovalCause.FULL:
+                self.stats.inc_evictions(1)
         except KeyError:
             pass
 
