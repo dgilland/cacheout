@@ -1,9 +1,9 @@
 import dataclasses
 from threading import RLock
-from typing import TYPE_CHECKING
+import typing as t
 
 
-if TYPE_CHECKING:
+if t.TYPE_CHECKING:
     from .cache import Cache  # pragma: no cover
 
 
@@ -62,6 +62,31 @@ class CacheStats:
             return 1.0
         return self.evictions / self.accesses
 
+    def __repr__(self):
+        """Return repr of object."""
+        data = self.asdict()
+        fields = []
+        for k, v in data.items():
+            if isinstance(v, float):
+                s = f"{v:0.2f}"
+            else:
+                s = f"{v!r}"
+            fields.append(f"{k}={s}")
+        return f"{self.__class__.__name__}({', '.join(fields)})"
+
+    def asdict(self) -> t.Dict[str, t.Any]:
+        """Return dictionary representation of object."""
+        return {
+            "hits": self.hits,
+            "misses": self.misses,
+            "evictions": self.evictions,
+            "total_entries": self.total_entries,
+            "accesses": self.accesses,
+            "hit_rate": self.hit_rate,
+            "miss_rate": self.miss_rate,
+            "eviction_rate": self.eviction_rate,
+        }
+
     def copy(self):
         """Return copy of this object."""
         return dataclasses.replace(self)
@@ -109,7 +134,11 @@ class CacheStatsTracker:
             self._enabled = True
 
     def disable(self) -> None:
-        """Disable statistics."""
+        """
+        Disable statistics.
+
+        Warning: This will reset all previously collected statistics.
+        """
         with self._lock:
             self.reset()
             self._enabled = False
@@ -137,7 +166,7 @@ class CacheStatsTracker:
         return self._enabled and not self._paused
 
     def reset(self) -> None:
-        """Clear statistics."""
+        """Reset statistics."""
         with self._lock:
             self._stats = CacheStats()
 

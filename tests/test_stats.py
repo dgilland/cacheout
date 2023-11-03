@@ -23,15 +23,29 @@ def test_stats_tracker_info(cache: Cache):
     assert cache.get("1") is None
     assert cache.get("2") == "two"
 
-    stats = cache.stats.info()
-    assert stats is not None
-    assert stats.hits == 1
-    assert stats.misses == 4
-    assert stats.hit_rate == 0.2
-    assert stats.accesses == 5
-    assert stats.miss_rate == 0.8
-    assert stats.eviction_rate == 0.2
-    assert stats.total_entries == 2
+    info = cache.stats.info()
+    assert info is not None
+    assert info.hits == 1
+    assert info.misses == 4
+    assert info.hit_rate == 0.2
+    assert info.accesses == 5
+    assert info.miss_rate == 0.8
+    assert info.eviction_rate == 0.2
+    assert info.total_entries == 2
+
+
+def test_stats_tracker_info_asdict(cache: Cache):
+    info = cache.stats.info()
+    assert info.asdict() == {
+        "hits": info.hits,
+        "misses": info.misses,
+        "evictions": info.evictions,
+        "total_entries": info.total_entries,
+        "accesses": info.accesses,
+        "hit_rate": info.hit_rate,
+        "miss_rate": info.miss_rate,
+        "eviction_rate": info.eviction_rate,
+    }
 
 
 def test_stats_tracker_reset(cache: Cache):
@@ -54,15 +68,15 @@ def test_stats_tracker_pause(cache: Cache):
     assert cache.get("1") is None
     assert cache.get("2") == "two"
 
-    stats = cache.stats.info()
-    assert stats is not None
-    assert stats.hits == 1
-    assert stats.misses == 4
-    assert stats.hit_rate == 0.2
-    assert stats.accesses == 5
-    assert stats.miss_rate == 0.8
-    assert stats.eviction_rate == 0.2
-    assert stats.total_entries == 2
+    info = cache.stats.info()
+    assert info is not None
+    assert info.hits == 1
+    assert info.misses == 4
+    assert info.hit_rate == 0.2
+    assert info.accesses == 5
+    assert info.miss_rate == 0.8
+    assert info.eviction_rate == 0.2
+    assert info.total_entries == 2
 
     cache.stats.pause()
     assert cache.stats.is_paused() is True
@@ -72,15 +86,15 @@ def test_stats_tracker_pause(cache: Cache):
     assert cache.get("2") == "two"
     cache.add("4", "four")
 
-    stats = cache.stats.info()
-    assert stats is not None
-    assert stats.hits == 1
-    assert stats.misses == 4
-    assert stats.hit_rate == 0.2
-    assert stats.accesses == 5
-    assert stats.miss_rate == 0.8
-    assert stats.eviction_rate == 0.2
-    assert stats.total_entries == 2
+    info = cache.stats.info()
+    assert info is not None
+    assert info.hits == 1
+    assert info.misses == 4
+    assert info.hit_rate == 0.2
+    assert info.accesses == 5
+    assert info.miss_rate == 0.8
+    assert info.eviction_rate == 0.2
+    assert info.total_entries == 2
 
 
 def test_stats_tracker_resume(cache: Cache):
@@ -96,15 +110,15 @@ def test_stats_tracker_resume(cache: Cache):
     assert cache.get("1") is None
     assert cache.get("2") == "two"
 
-    stats = cache.stats.info()
-    assert stats is not None
-    assert stats.hits == 1
-    assert stats.misses == 4
-    assert stats.hit_rate == 0.2
-    assert stats.accesses == 5
-    assert stats.miss_rate == 0.8
-    assert stats.eviction_rate == 0.2
-    assert stats.total_entries == 2
+    info = cache.stats.info()
+    assert info is not None
+    assert info.hits == 1
+    assert info.misses == 4
+    assert info.hit_rate == 0.2
+    assert info.accesses == 5
+    assert info.miss_rate == 0.8
+    assert info.eviction_rate == 0.2
+    assert info.total_entries == 2
 
 
 def test_stats_tracker_disable(cache: Cache):
@@ -113,15 +127,15 @@ def test_stats_tracker_disable(cache: Cache):
     assert cache.stats.is_enabled() is False
     assert cache.stats.is_active() is False
 
-    stats = cache.stats.info()
-    assert stats is not None
-    assert stats.hits == 0
-    assert stats.misses == 0
-    assert stats.accesses == 0
-    assert stats.hit_rate == 1.0
-    assert stats.miss_rate == 0.0
-    assert stats.eviction_rate == 1.0
-    assert stats.total_entries == 2
+    info = cache.stats.info()
+    assert info is not None
+    assert info.hits == 0
+    assert info.misses == 0
+    assert info.accesses == 0
+    assert info.hit_rate == 1.0
+    assert info.miss_rate == 0.0
+    assert info.eviction_rate == 1.0
+    assert info.total_entries == 2
 
 
 def test_stats_tracker_enable(cache: Cache):
@@ -139,12 +153,12 @@ def test_stats_tracker_enable(cache: Cache):
     cache.add("4", "four")
     cache.add("5", "five")
 
-    stats = cache.stats.info()
-    assert stats is not None
-    assert stats.hits == 1
-    assert stats.misses == 3
-    assert stats.accesses == 4
-    assert stats.hit_rate == 0.25
-    assert stats.miss_rate == 0.75
-    assert stats.eviction_rate == 0.5
-    assert stats.total_entries == 2
+    info = cache.stats.info()
+    assert info is not None
+    assert info.hits == 1
+    assert info.misses == 3
+    assert info.accesses == 4
+    assert info.hit_rate == 0.25
+    assert info.miss_rate == 0.75
+    assert info.eviction_rate == 0.5
+    assert info.total_entries == 2
