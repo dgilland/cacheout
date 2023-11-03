@@ -15,7 +15,7 @@ from threading import RLock
 import time
 import typing as t
 
-from .stats import StatsTracker
+from .stats import CacheStatsTracker
 
 
 F = t.TypeVar("F", bound=t.Callable[..., t.Any])
@@ -93,7 +93,7 @@ class Cache:
         self.timer = timer
         self.default = default
         self.on_delete = on_delete
-        self.stats = StatsTracker(self)
+        self.stats = CacheStatsTracker(self)
 
         self.setup()
         self.configure(maxsize=maxsize, ttl=ttl, timer=timer, default=default)

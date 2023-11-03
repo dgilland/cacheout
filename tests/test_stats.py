@@ -13,7 +13,12 @@ def cache() -> Cache:
     return cache
 
 
-def test_info(cache: Cache):
+def test_stats_tracker_repr(cache: Cache):
+    """Test that stats tracker has expected repr."""
+    assert repr(cache.stats) == f"CacheStatsTracker(info={repr(cache.stats.info())})"
+
+
+def test_stats_tracker_info(cache: Cache):
     """Test that cache.stats.info() gets statistics."""
     assert cache.get("1") is None
     assert cache.get("2") == "two"
@@ -27,15 +32,9 @@ def test_info(cache: Cache):
     assert stats.miss_rate == 0.8
     assert stats.eviction_rate == 0.2
     assert stats.total_entries == 2
-    assert repr(stats) == (
-        "Stats("
-        "hits=1, misses=4, total_entries=2, accesses=5, "
-        "hit_rate=0.2, miss_rate=0.8, eviction_rate=0.2"
-        ")"
-    )
 
 
-def test_reset(cache: Cache):
+def test_stats_tracker_reset(cache: Cache):
     """Test that cache.stats.reset() clears statistics."""
     cache.stats.reset()
 
@@ -50,7 +49,7 @@ def test_reset(cache: Cache):
     assert stats.total_entries == 2
 
 
-def test_pause(cache: Cache):
+def test_stats_tracker_pause(cache: Cache):
     """Test that cache.stats.pause() pauses statistics."""
     assert cache.get("1") is None
     assert cache.get("2") == "two"
@@ -83,7 +82,7 @@ def test_pause(cache: Cache):
     assert stats.total_entries == 2
 
 
-def test_resume(cache: Cache):
+def test_stats_tracker_resume(cache: Cache):
     """Test that cache.stats.resume() resumes statistics."""
     cache.stats.pause()
     assert cache.stats.is_paused() is True
@@ -105,7 +104,7 @@ def test_resume(cache: Cache):
     assert stats.total_entries == 2
 
 
-def test_disable(cache: Cache):
+def test_stats_tracker_disable(cache: Cache):
     """Test that cache.stats.pause() disables statistics."""
     cache.stats.disable()
     assert cache.stats.is_enabled() is False
@@ -121,7 +120,7 @@ def test_disable(cache: Cache):
     assert stats.total_entries == 2
 
 
-def test_enable(cache: Cache):
+def test_stats_tracker_enable(cache: Cache):
     """Test that cache.stats.pause() enables statistics."""
     cache.stats.disable()
     assert cache.stats.is_enabled() is False
