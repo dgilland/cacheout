@@ -30,12 +30,13 @@ class RemovalCause(Enum):
     """
     An enum to represent the cause for the removal of a cache entry.
 
-    - DELETE: indicates that the cache entry was deleted by delete() or delete_many() explicitly.
-    - SET: indicates that the cache entry was replaced with a new value by set() or set_many().
-    - EXPIRED: indicates that the cache entry was removed because it expired.
-    - FULL: indicates that the cache entry was removed because cache has been full
-        (reached the maximum size limit).
-    - POPITEM: indicates that the cache entry was deleted by popitem().
+    Attributes:
+        DELETE: indicates that the cache entry was deleted by delete() or delete_many() explicitly.
+        SET: indicates that the cache entry was replaced with a new value by set() or set_many().
+        EXPIRED: indicates that the cache entry was removed because it expired.
+        FULL: indicates that the cache entry was removed because cache has been full (reached the
+            maximum size limit).
+        POPITEM: indicates that the cache entry was deleted by popitem().
     """
 
     DELETE = auto()
