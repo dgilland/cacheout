@@ -42,8 +42,7 @@ Roadmap
 =======
 
 - Layered caching (multi-level caching)
-- Cache event listener support (e.g. on-get, on-set, on-delete)
-- Cache statistics (e.g. cache hits/misses, cache frequency, etc)
+- Additional cache event listener support (e.g. on-get, on-set)
 
 
 Requirements
@@ -249,6 +248,46 @@ Check if key exists with ``cache.has()`` and ``key in cache``:
 
     assert cache.has('a')
     assert 'a' in cache
+
+
+Enable cache statistics:
+
+.. code-block:: python
+
+    cache_with_stats = Cache(enable_stats=True)
+
+    # Or via configure()
+    cache.configure(enable_stats=True)
+
+    # Or directly via Cache.stats
+    cache.stats.enable()
+
+
+Get cache statistics:
+
+.. code-block:: python
+
+    print(cache.stats.info())
+
+
+Manage tracking of statistics:
+
+.. code-block:: python
+
+    # Pause tracking (collected stats will not be affected)
+    cache.stats.pause()
+
+    # Resume tracking
+    cache.stats.resume()
+
+    # Reset stats
+    cache.stats.reset()
+
+    # Disable stats (WARNING: This resets stats)
+    cache.stats.disable()
+
+    # Disable via configure() (WARNING: This resets stats)
+    cache.configure(enable_stats=False)
 
 
 Manage multiple caches using ``CacheManager``:
