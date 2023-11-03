@@ -74,6 +74,7 @@ class Cache:
             it will be passed a single argument, ``key``, and its return value will be set for that
             cache key.
         on_delete: Callback which will be executed when a cache entry is evicted.
+        stats: Cache statistics.
     """
 
     _cache: OrderedDict
