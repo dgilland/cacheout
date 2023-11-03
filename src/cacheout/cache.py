@@ -86,6 +86,7 @@ class Cache:
         ttl: T_TTL = 0,
         timer: t.Callable[[], T_TTL] = time.time,
         default: t.Any = None,
+        enable_stats: bool = False,
         on_delete: t.Optional[t.Callable[[t.Hashable, t.Any, RemovalCause], None]] = None,
     ):
         self.maxsize = maxsize
@@ -93,10 +94,12 @@ class Cache:
         self.timer = timer
         self.default = default
         self.on_delete = on_delete
-        self.stats = CacheStatsTracker(self)
+        self.stats = CacheStatsTracker(self, enable=enable_stats)
 
         self.setup()
-        self.configure(maxsize=maxsize, ttl=ttl, timer=timer, default=default)
+        self.configure(
+            maxsize=maxsize, ttl=ttl, timer=timer, default=default, enable_stats=enable_stats
+        )
 
     def setup(self) -> None:
         self._cache: OrderedDict = OrderedDict()
@@ -109,6 +112,7 @@ class Cache:
         ttl: t.Optional[T_TTL] = None,
         timer: t.Optional[t.Callable[[], T_TTL]] = None,
         default: t.Any = UNSET,
+        enable_stats: t.Any = UNSET,
     ) -> None:
         """
         Configure cache settings.
@@ -141,6 +145,14 @@ class Cache:
 
         if default is not UNSET:
             self.default = default
+
+        if enable_stats is not UNSET:
+            if not isinstance(enable_stats, bool):
+                raise TypeError("enable_stats must be a boolean")
+            if enable_stats:
+                self.stats.enable()
+            else:
+                self.stats.disable()
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(id={id(self)}, total_entries={len(self)})"

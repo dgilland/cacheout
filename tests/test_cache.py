@@ -37,6 +37,7 @@ def cache(timer) -> Cache:
         ({"ttl": -1}, ValueError),
         ({"ttl": "1"}, TypeError),
         ({"timer": True}, TypeError),
+        ({"enable_stats": None}, TypeError),
     ],
 )
 def test_cache_init_validation(args: dict, exc: t.Type[Exception]):
@@ -744,3 +745,24 @@ def test_cache_on_delete(cache: Cache, timer: Timer):
     cache.set("FULL", 1)
     cache.set("OVERFLOW", 2)
     assert log == f"FULL:1 {RemovalCause.FULL.value}"
+
+
+def test_cache_stats__disabled_by_default(cache: Cache):
+    """Test that cache stats are disabled by default."""
+    assert cache.stats.is_enabled() is False
+
+
+def test_cache_stats__enable_on_init():
+    """Test that cache stats can be enabled on init."""
+    cache = Cache(enable_stats=True)
+    assert cache.stats.is_enabled() is True
+
+
+def test_cache_stats_configure(cache: Cache):
+    """Test that cache stats can enabled/disabled on configure."""
+    assert cache.stats.is_enabled() is False
+    cache.configure(enable_stats=True)
+
+    assert cache.stats.is_enabled() is True
+    cache.configure(enable_stats=False)
+    assert cache.stats.is_enabled() is False

@@ -72,13 +72,11 @@ class CacheStatsTracker:
 
     _lock: RLock
 
-    def __init__(self, cache: "Cache") -> None:
+    def __init__(self, cache: "Cache", enable: bool = True) -> None:
         self._cache = cache
-
         self._lock = RLock()
         self._stats = CacheStats()
-
-        self._enabled = False
+        self._enabled = enable
         self._paused = False
 
     def __repr__(self):
