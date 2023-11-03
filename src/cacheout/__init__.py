@@ -19,3 +19,4 @@ from .memoization import (
 )
 from .mru import MRUCache
 from .rr import RRCache
+from .stats import CacheStats, CacheStatsTracker
