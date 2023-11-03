@@ -72,7 +72,7 @@ class CacheStatsTracker:
 
     _lock: RLock
 
-    def __init__(self, cache: "Cache", enable: bool = True) -> None:
+    def __init__(self, cache: "Cache", *, enable: bool = True) -> None:
         self._cache = cache
         self._lock = RLock()
         self._stats = CacheStats()

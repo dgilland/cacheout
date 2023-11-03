@@ -82,6 +82,7 @@ class Cache:
 
     def __init__(
         self,
+        *,
         maxsize: int = 256,
         ttl: T_TTL = 0,
         timer: t.Callable[[], T_TTL] = time.time,
@@ -108,6 +109,7 @@ class Cache:
 
     def configure(
         self,
+        *,
         maxsize: t.Optional[int] = None,
         ttl: t.Optional[T_TTL] = None,
         timer: t.Optional[t.Callable[[], T_TTL]] = None,
