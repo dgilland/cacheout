@@ -702,13 +702,14 @@ def test_cache_iter(cache: Cache):
 
 def test_cache_repr(cache: Cache):
     """Test that repr(cache) returns a representation of the cache object."""
-    assert repr(cache) == "Cache([])"
+    cache_id = id(cache)
+    assert repr(cache) == f"Cache(id={cache_id}, total_entries=0)"
 
     cache.set("a", 1)
     cache.set("b", 2)
     cache.set("c", 3)
 
-    assert repr(cache) == "Cache([('a', 1), ('b', 2), ('c', 3)])"
+    assert repr(cache) == f"Cache(id={cache_id}, total_entries=3)"
 
 
 def test_cache_on_delete(cache: Cache, timer: Timer):

@@ -143,7 +143,7 @@ class Cache:
             self.default = default
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({list(self.copy().items())})"
+        return f"{self.__class__.__name__}(id={id(self)}, total_entries={len(self)})"
 
     def __len__(self) -> int:
         with self._lock:
