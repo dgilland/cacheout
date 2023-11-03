@@ -2,6 +2,12 @@ Changelog
 =========
 
 
+- Add cache statistics. Thanks uncle-lv_!
+- Add ``Cache.get_ttl``. Thanks uncle-lv_!
+- Add ``Cache.on_delete`` callback hook. Thanks uncle-lv_!
+- Add support for Python 3.11 and 3.12.
+
+
 v0.14.1 (2022-08-16)
 --------------------
 
@@ -169,3 +175,4 @@ v0.1.0 (2018-01-28)
 
 .. _johnbergvall: https://github.com/johnbergvall
 .. _AllinolCP: https://github.com/AllinolCP
+.. _uncle-lv: https://github.com/uncle-lv
