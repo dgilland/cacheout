@@ -66,6 +66,7 @@ def test_stats_tracker_pause(cache: Cache):
 
     cache.stats.pause()
     assert cache.stats.is_paused() is True
+    assert cache.stats.is_active() is False
 
     assert cache.get("1") is None
     assert cache.get("2") == "two"
@@ -86,9 +87,11 @@ def test_stats_tracker_resume(cache: Cache):
     """Test that cache.stats.resume() resumes statistics."""
     cache.stats.pause()
     assert cache.stats.is_paused() is True
+    assert cache.stats.is_active() is False
 
     cache.stats.resume()
     assert cache.stats.is_paused() is False
+    assert cache.stats.is_active() is True
 
     assert cache.get("1") is None
     assert cache.get("2") == "two"
@@ -108,6 +111,7 @@ def test_stats_tracker_disable(cache: Cache):
     """Test that cache.stats.pause() disables statistics."""
     cache.stats.disable()
     assert cache.stats.is_enabled() is False
+    assert cache.stats.is_active() is False
 
     stats = cache.stats.info()
     assert stats is not None
@@ -124,9 +128,11 @@ def test_stats_tracker_enable(cache: Cache):
     """Test that cache.stats.pause() enables statistics."""
     cache.stats.disable()
     assert cache.stats.is_enabled() is False
+    assert cache.stats.is_active() is False
 
     cache.stats.enable()
     assert cache.stats.is_enabled() is True
+    assert cache.stats.is_active() is True
 
     assert cache.get("1") is None
     assert cache.get("2") == "two"

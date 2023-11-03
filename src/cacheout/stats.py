@@ -116,10 +116,6 @@ class CacheStatsTracker:
             self.reset()
             self._enabled = False
 
-    def is_enabled(self) -> bool:
-        """Whether statistics is enabled."""
-        return self._enabled
-
     def pause(self) -> None:
         """Pause statistics."""
         with self._lock:
@@ -130,9 +126,17 @@ class CacheStatsTracker:
         with self._lock:
             self._paused = False
 
+    def is_enabled(self) -> bool:
+        """Whether statistics tracking is enabled."""
+        return self._enabled
+
     def is_paused(self) -> bool:
-        """Whether statistics is paused."""
+        """Whether statistics tracking is paused."""
         return self._paused
+
+    def is_active(self) -> bool:
+        """Whether statistics tracking is active (enabled and not paused)."""
+        return self._enabled and not self._paused
 
     def reset(self) -> None:
         """Clear statistics."""
