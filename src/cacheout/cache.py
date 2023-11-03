@@ -107,7 +107,7 @@ class Cache:
         self._expire_times: t.Dict[t.Hashable, T_TTL] = {}
         self._lock = RLock()
 
-    def configure(
+    def configure(  # noqa: C901
         self,
         *,
         maxsize: t.Optional[int] = None,
@@ -151,6 +151,7 @@ class Cache:
         if enable_stats is not UNSET:
             if not isinstance(enable_stats, bool):
                 raise TypeError("enable_stats must be a boolean")
+
             if enable_stats:
                 self.stats.enable()
             else:
