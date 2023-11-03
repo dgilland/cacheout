@@ -260,9 +260,9 @@ class Cache:
             if self.expired(key):
                 self._delete(key, RemovalCause.EXPIRED)
                 raise KeyError
-            self.stats.inc_hits(1)
+            self.stats.inc_hit_count()
         except KeyError:
-            self.stats.inc_misses(1)
+            self.stats.inc_miss_count()
             if default is None:
                 default = self.default
 
@@ -400,7 +400,7 @@ class Cache:
                 self.on_delete(key, value, cause)
             count = 1
             if cause == RemovalCause.FULL:
-                self.stats.inc_evictions(1)
+                self.stats.inc_eviction_count()
         except KeyError:
             pass
 

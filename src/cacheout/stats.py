@@ -13,58 +13,45 @@ class CacheStats:
     Cache statistics snapshot.
 
     Attributes:
-        hits: The number of cache hits.
-        misses: The number of cache misses.
-        evictions: The number of cache entries have been evicted.
-        total_entries: The total number of cache entries.
+        hit_count: The number of cache hits.
+        miss_count: The number of cache misses.
+        eviction_count: The number of cache entries have been evicted.
+        entry_count: The total number of cache entries.
     """
 
-    hits: int = 0
-    misses: int = 0
-    evictions: int = 0
-    total_entries: int = 0
+    hit_count: int = 0
+    miss_count: int = 0
+    eviction_count: int = 0
+    entry_count: int = 0
 
     @property
-    def accesses(self) -> int:
+    def access_count(self) -> int:
         """The number of times cache has been accessed."""
-        return self.hits + self.misses
+        return self.hit_count + self.miss_count
 
     @property
     def hit_rate(self) -> float:
-        """
-        The cache hit rate.
-
-        Return 1.0 when ``accesses`` == 0.
-        """
-        if self.accesses == 0:
-            return 1.0
-        return self.hits / self.accesses
+        """The cache hit rate."""
+        if self.access_count == 0:
+            return 0.0
+        return self.hit_count / self.access_count
 
     @property
     def miss_rate(self) -> float:
-        """
-        The cache miss rate.
-
-        Return 0.0 when ``accesses`` == 0.
-        """
-        if self.accesses == 0:
+        """The cache miss rate."""
+        if self.access_count == 0:
             return 0.0
-        return self.misses / self.accesses
+        return self.miss_count / self.access_count
 
     @property
     def eviction_rate(self) -> float:
-        """
-        The cache eviction rate.
-
-        Return 1.0 when ``accesses`` == 0.
-        """
-        if self.accesses == 0:
-            return 1.0
-        return self.evictions / self.accesses
+        """The cache eviction rate."""
+        if self.access_count == 0:
+            return 0.0
+        return self.eviction_count / self.access_count
 
     def __repr__(self):
-        """Return repr of object."""
-        data = self.asdict()
+        data = self.to_dict()
         fields = []
         for k, v in data.items():
             if isinstance(v, float):
@@ -74,14 +61,17 @@ class CacheStats:
             fields.append(f"{k}={s}")
         return f"{self.__class__.__name__}({', '.join(fields)})"
 
-    def asdict(self) -> t.Dict[str, t.Any]:
+    def __iter__(self):
+        return iter(self.to_dict().items())
+
+    def to_dict(self) -> t.Dict[str, t.Any]:
         """Return dictionary representation of object."""
         return {
-            "hits": self.hits,
-            "misses": self.misses,
-            "evictions": self.evictions,
-            "total_entries": self.total_entries,
-            "accesses": self.accesses,
+            "hit_count": self.hit_count,
+            "miss_count": self.miss_count,
+            "eviction_count": self.eviction_count,
+            "entry_count": self.entry_count,
+            "access_count": self.access_count,
             "hit_rate": self.hit_rate,
             "miss_rate": self.miss_rate,
             "eviction_rate": self.eviction_rate,
@@ -107,26 +97,29 @@ class CacheStatsTracker:
     def __repr__(self):
         return f"{self.__class__.__name__}(info={self.info()})"
 
-    def inc_hits(self, count: int) -> None:
+    def inc_hit_count(self, count: int = 1) -> None:
+        """Increment the number of cache hits."""
         if not self._enabled or self._paused:
             return
 
         with self._lock:
-            self._stats.hits += count
+            self._stats.hit_count += count
 
-    def inc_misses(self, count: int) -> None:
+    def inc_miss_count(self, count: int = 1) -> None:
+        """Increment the number of cache misses."""
         if not self._enabled or self._paused:
             return
 
         with self._lock:
-            self._stats.misses += count
+            self._stats.miss_count += count
 
-    def inc_evictions(self, count: int) -> None:
+    def inc_eviction_count(self, count: int = 1) -> None:
+        """Increment the number of cache evictions."""
         if not self._enabled or self._paused:
             return
 
         with self._lock:
-            self._stats.evictions += count
+            self._stats.eviction_count += count
 
     def enable(self) -> None:
         """Enable statistics."""
@@ -154,24 +147,24 @@ class CacheStatsTracker:
             self._paused = False
 
     def is_enabled(self) -> bool:
-        """Whether statistics tracking is enabled."""
+        """Return whether statistics tracking is enabled."""
         return self._enabled
 
     def is_paused(self) -> bool:
-        """Whether statistics tracking is paused."""
+        """Return whether statistics tracking is paused."""
         return self._paused
 
     def is_active(self) -> bool:
-        """Whether statistics tracking is active (enabled and not paused)."""
+        """Return whether statistics tracking is active (enabled and not paused)."""
         return self._enabled and not self._paused
 
     def reset(self) -> None:
-        """Reset statistics."""
+        """Reset statistics to zero values."""
         with self._lock:
             self._stats = CacheStats()
 
     def info(self) -> CacheStats:
-        """Get a snapshot of statistics."""
+        """Return a snapshot of the cache statistics."""
         with self._lock:
-            self._stats.total_entries = len(self._cache)
+            self._stats.entry_count = len(self._cache)
             return self._stats.copy()
