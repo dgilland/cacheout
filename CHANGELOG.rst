@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+v0.15.0 (2023-11-03)
+--------------------
+
 - Add cache statistics. Thanks uncle-lv_!
 - Add ``Cache.get_ttl``. Thanks uncle-lv_!
 - Add ``Cache.on_delete`` callback hook. Thanks uncle-lv_!
