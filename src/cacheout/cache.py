@@ -356,6 +356,8 @@ class Cache:
         if key not in self._cache:
             self.evict()
 
+        # Delete key before setting it so that it moves to the end of the OrderedDict key list.
+        # Needed for cache strategies that rely on the ordering of when keys were last inserted.
         self._delete(key, RemovalCause.SET)
         self._cache[key] = value
 
