@@ -719,32 +719,50 @@ def test_cache_on_delete(cache: Cache, timer: Timer):
 
     def on_delete(key, value, cause):
         nonlocal log
-        log = f"{key}:{value} {cause.value}"
+        log = f"{key}={value}, RemovalCause={cause.value}"
 
     cache.on_delete = on_delete
     cache.set("DELETE", 1)
     cache.delete("DELETE")
-    assert log == f"DELETE:1 {RemovalCause.DELETE.value}"
+    assert log == f"DELETE=1, RemovalCause={RemovalCause.DELETE.value}"
 
     cache.set("SET", 1)
     cache.set("SET", 2)
-    assert log == f"SET:1 {RemovalCause.SET.value}"
+    assert log == f"SET=1, RemovalCause={RemovalCause.SET.value}"
 
     cache.clear()
     cache.set("POPITEM", 1)
     cache.popitem()
-    assert log == f"POPITEM:1 {RemovalCause.POPITEM.value}"
+    assert log == f"POPITEM=1, RemovalCause={RemovalCause.POPITEM.value}"
 
     cache.set("EXPIRED", 1, ttl=1)
     timer.time = 1
     cache.delete_expired()
-    assert log == f"EXPIRED:1 {RemovalCause.EXPIRED.value}"
+    assert log == f"EXPIRED=1, RemovalCause={RemovalCause.EXPIRED.value}"
 
     cache.clear()
     cache.maxsize = 1
     cache.set("FULL", 1)
     cache.set("OVERFLOW", 2)
-    assert log == f"FULL:1 {RemovalCause.FULL.value}"
+    assert log == f"FULL=1, RemovalCause={RemovalCause.FULL.value}"
+
+
+def test_cache_on_get(cache: Cache):
+    """Test that on_get(cache) callback."""
+    log = ""
+
+    def on_get(key, value, existed):
+        nonlocal log
+        log = f"{key}={value}, existed={existed}"
+
+    cache.on_get = on_get
+    cache.set("hit", 1)
+
+    cache.get("hit")
+    assert log == "hit=1, existed=True"
+
+    cache.get("miss")
+    assert log == "miss=None, existed=False"
 
 
 def test_cache_stats__disabled_by_default(cache: Cache):

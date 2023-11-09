@@ -74,6 +74,7 @@ class Cache:
         default: Default value or function to use in :meth:`get` when key is not found. If callable,
             it will be passed a single argument, ``key``, and its return value will be set for that
             cache key.
+        on_get: Callback which will be executed when a cache entry is got.
         on_delete: Callback which will be executed when a cache entry is removed.
         stats: Cache statistics.
     """
@@ -90,12 +91,14 @@ class Cache:
         timer: t.Callable[[], T_TTL] = time.time,
         default: t.Any = None,
         enable_stats: bool = False,
+        on_get: t.Optional[t.Callable[[t.Hashable, t.Any, bool], None]] = None,
         on_delete: t.Optional[t.Callable[[t.Hashable, t.Any, RemovalCause], None]] = None,
     ):
         self.maxsize = maxsize
         self.ttl = ttl
         self.timer = timer
         self.default = default
+        self.on_get = on_get
         self.on_delete = on_delete
         self.stats = CacheStatsTracker(self, enable=enable_stats)
 
@@ -262,6 +265,9 @@ class Cache:
                 self._delete(key, RemovalCause.EXPIRED)
                 raise KeyError
             self.stats.inc_hit_count()
+
+            if self.on_get:
+                self.on_get(key, value, True)
         except KeyError:
             self.stats.inc_miss_count()
             if default is None:
@@ -272,6 +278,9 @@ class Cache:
                 self._set(key, value)
             else:
                 value = default
+
+            if self.on_get:
+                self.on_get(key, value, False)
 
         return value
 
