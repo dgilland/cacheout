@@ -18,6 +18,15 @@ import typing as t
 from .stats import CacheStatsTracker
 
 
+F = t.TypeVar("F", bound=t.Callable[..., t.Any])
+T_DECORATOR = t.Callable[[F], F]
+T_TTL = t.Union[int, float]
+T_FILTER = t.Union[str, t.List[t.Hashable], t.Pattern, t.Callable]
+
+
+UNSET = object()
+
+
 class RemovalCause(Enum):
     """
     An enum to represent the cause for the removal of a cache entry.
@@ -38,29 +47,19 @@ class RemovalCause(Enum):
     POPITEM = auto()
 
 
-F = t.TypeVar("F", bound=t.Callable[..., t.Any])
-T_DECORATOR = t.Callable[[F], F]
-T_TTL = t.Union[int, float]
-T_FILTER = t.Union[str, t.List[t.Hashable], t.Pattern, t.Callable]
-ON_GET_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, bool], None]]
-"""
-Callback that will be executed when a cache entry is retrieved.
+#: Callback that will be executed when a cache entry is retrieved.
 
-It is called with arguments ``(key, value, exists)`` where `key` is the cache key,
-`value` is the value retrieved (could be the default),
-and `exists` is whether the cache key exists or not.
-"""
+#: It is called with arguments ``(key, value, exists)`` where `key` is the cache key,
+#: `value` is the value retrieved (could be the default),
+#: and `exists` is whether the cache key exists or not.
+T_ON_GET_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, bool], None]]
 
-ON_DELETE_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, RemovalCause], None]]
-"""
-Callback that will be executed when a cache entry is removed.
+#: Callback that will be executed when a cache entry is removed.
 
-It is called with arguments ``(key, value, cause)`` where `key` is the cache key,
-`value` is the cached value at the time of deletion,
-and `cause` is the reason the key was removed (see :class:`RemovalCause` for enumerated causes).
-"""
-
-UNSET = object()
+#: It is called with arguments ``(key, value, cause)`` where `key` is the cache key,
+#: `value` is the cached value at the time of deletion,
+#: and `cause` is the reason the key was removed (see :class:`RemovalCause` for enumerated causes).
+T_ON_DELETE_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, RemovalCause], None]]
 
 
 class Cache:
@@ -92,7 +91,9 @@ class Cache:
             it will be passed a single argument, ``key``, and its return value will be set for that
             cache key.
         on_get: Callback which will be executed when a cache entry is retrieved.
+            See :class:`T_ON_GET_CALLBACK` for details.
         on_delete: Callback which will be executed when a cache entry is removed.
+            See :class:`T_ON_DELETE_CALLBACK` for details.
         stats: Cache statistics.
     """
 
@@ -108,8 +109,8 @@ class Cache:
         timer: t.Callable[[], T_TTL] = time.time,
         default: t.Any = None,
         enable_stats: bool = False,
-        on_get: ON_GET_CALLBACK = None,
-        on_delete: ON_DELETE_CALLBACK = None,
+        on_get: T_ON_GET_CALLBACK = None,
+        on_delete: T_ON_DELETE_CALLBACK = None,
     ):
         self.maxsize = maxsize
         self.ttl = ttl
