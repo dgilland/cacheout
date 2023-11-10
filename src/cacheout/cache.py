@@ -18,14 +18,6 @@ import typing as t
 from .stats import CacheStatsTracker
 
 
-F = t.TypeVar("F", bound=t.Callable[..., t.Any])
-T_DECORATOR = t.Callable[[F], F]
-T_TTL = t.Union[int, float]
-T_FILTER = t.Union[str, t.List[t.Hashable], t.Pattern, t.Callable]
-
-UNSET = object()
-
-
 class RemovalCause(Enum):
     """
     An enum to represent the cause for the removal of a cache entry.
@@ -44,6 +36,31 @@ class RemovalCause(Enum):
     EXPIRED = auto()
     FULL = auto()
     POPITEM = auto()
+
+
+F = t.TypeVar("F", bound=t.Callable[..., t.Any])
+T_DECORATOR = t.Callable[[F], F]
+T_TTL = t.Union[int, float]
+T_FILTER = t.Union[str, t.List[t.Hashable], t.Pattern, t.Callable]
+ON_GET_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, bool], None]]
+"""
+Callback that will be executed when a cache entry is retrieved.
+
+It is called with arguments ``(key, value, exists)`` where `key` is the cache key,
+`value` is the value retrieved (could be the default),
+and `exists` is whether the cache key exists or not.
+"""
+
+ON_DELETE_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, RemovalCause], None]]
+"""
+Callback that will be executed when a cache entry is removed.
+
+It is called with arguments ``(key, value, cause)`` where `key` is the cache key,
+`value` is the cached value at the time of deletion,
+and `cause` is the reason the key was removed (see :class:`RemovalCause` for enumerated causes).
+"""
+
+UNSET = object()
 
 
 class Cache:
@@ -74,7 +91,7 @@ class Cache:
         default: Default value or function to use in :meth:`get` when key is not found. If callable,
             it will be passed a single argument, ``key``, and its return value will be set for that
             cache key.
-        on_get: Callback which will be executed when a cache entry is got.
+        on_get: Callback which will be executed when a cache entry is retrieved.
         on_delete: Callback which will be executed when a cache entry is removed.
         stats: Cache statistics.
     """
@@ -91,8 +108,8 @@ class Cache:
         timer: t.Callable[[], T_TTL] = time.time,
         default: t.Any = None,
         enable_stats: bool = False,
-        on_get: t.Optional[t.Callable[[t.Hashable, t.Any, bool], None]] = None,
-        on_delete: t.Optional[t.Callable[[t.Hashable, t.Any, RemovalCause], None]] = None,
+        on_get: ON_GET_CALLBACK = None,
+        on_delete: ON_DELETE_CALLBACK = None,
     ):
         self.maxsize = maxsize
         self.ttl = ttl
@@ -258,6 +275,7 @@ class Cache:
             return self._get(key, default=default)
 
     def _get(self, key: t.Hashable, default: t.Any = None) -> t.Any:
+        existed = True
         try:
             value = self._cache[key]
 
@@ -265,10 +283,8 @@ class Cache:
                 self._delete(key, RemovalCause.EXPIRED)
                 raise KeyError
             self.stats.inc_hit_count()
-
-            if self.on_get:
-                self.on_get(key, value, True)
         except KeyError:
+            existed = False
             self.stats.inc_miss_count()
             if default is None:
                 default = self.default
@@ -279,8 +295,8 @@ class Cache:
             else:
                 value = default
 
-            if self.on_get:
-                self.on_get(key, value, False)
+        if self.on_get:
+            self.on_get(key, value, existed)
 
         return value
 
