@@ -23,6 +23,7 @@ T_DECORATOR = t.Callable[[F], F]
 T_TTL = t.Union[int, float]
 T_FILTER = t.Union[str, t.List[t.Hashable], t.Pattern, t.Callable]
 
+
 UNSET = object()
 
 
@@ -44,6 +45,21 @@ class RemovalCause(Enum):
     EXPIRED = auto()
     FULL = auto()
     POPITEM = auto()
+
+
+#: Callback that will be executed when a cache entry is retrieved.
+
+#: It is called with arguments ``(key, value, exists)`` where `key` is the cache key,
+#: `value` is the value retrieved (could be the default),
+#: and `exists` is whether the cache key exists or not.
+T_ON_GET_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, bool], None]]
+
+#: Callback that will be executed when a cache entry is removed.
+
+#: It is called with arguments ``(key, value, cause)`` where `key` is the cache key,
+#: `value` is the cached value at the time of deletion,
+#: and `cause` is the reason the key was removed (see :class:`RemovalCause` for enumerated causes).
+T_ON_DELETE_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, RemovalCause], None]]
 
 
 class Cache:
@@ -74,7 +90,10 @@ class Cache:
         default: Default value or function to use in :meth:`get` when key is not found. If callable,
             it will be passed a single argument, ``key``, and its return value will be set for that
             cache key.
+        on_get: Callback which will be executed when a cache entry is retrieved.
+            See :class:`T_ON_GET_CALLBACK` for details.
         on_delete: Callback which will be executed when a cache entry is removed.
+            See :class:`T_ON_DELETE_CALLBACK` for details.
         stats: Cache statistics.
     """
 
@@ -90,12 +109,14 @@ class Cache:
         timer: t.Callable[[], T_TTL] = time.time,
         default: t.Any = None,
         enable_stats: bool = False,
-        on_delete: t.Optional[t.Callable[[t.Hashable, t.Any, RemovalCause], None]] = None,
+        on_get: T_ON_GET_CALLBACK = None,
+        on_delete: T_ON_DELETE_CALLBACK = None,
     ):
         self.maxsize = maxsize
         self.ttl = ttl
         self.timer = timer
         self.default = default
+        self.on_get = on_get
         self.on_delete = on_delete
         self.stats = CacheStatsTracker(self, enable=enable_stats)
 
@@ -255,6 +276,7 @@ class Cache:
             return self._get(key, default=default)
 
     def _get(self, key: t.Hashable, default: t.Any = None) -> t.Any:
+        existed = True
         try:
             value = self._cache[key]
 
@@ -263,6 +285,7 @@ class Cache:
                 raise KeyError
             self.stats.inc_hit_count()
         except KeyError:
+            existed = False
             self.stats.inc_miss_count()
             if default is None:
                 default = self.default
@@ -272,6 +295,9 @@ class Cache:
                 self._set(key, value)
             else:
                 value = default
+
+        if self.on_get:
+            self.on_get(key, value, existed)
 
         return value
 
