@@ -33,18 +33,18 @@ class RemovalCause(Enum):
 
     Attributes:
         DELETE: indicates that the cache entry was deleted by delete() or delete_many() explicitly.
-        SET: indicates that the cache entry was replaced with a new value by set() or set_many().
         EXPIRED: indicates that the cache entry was removed because it expired.
         FULL: indicates that the cache entry was removed because cache has been full (reached the
             maximum size limit).
         POPITEM: indicates that the cache entry was deleted by popitem().
+        _IGNORE: It's an internal member indicates you don't want to call on_delete callback.
     """
 
     DELETE = auto()
-    SET = auto()
     EXPIRED = auto()
     FULL = auto()
     POPITEM = auto()
+    _IGNORE = auto()
 
 
 #: Callback that will be executed when a cache entry is retrieved.
@@ -53,6 +53,13 @@ class RemovalCause(Enum):
 #: `value` is the value retrieved (could be the default),
 #: and `exists` is whether the cache key exists or not.
 T_ON_GET_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, bool], None]]
+
+#: Callback that will be executed when a cache entry is set.
+
+#: It is called with arguments ``(key, new_value, old_value)`` where `key` is the cache key,
+#: `new_value` is the value is set,
+#: and `old_value` is the value is replaced(if the key didn't exist before, it's ``UNSET``).
+T_ON_SET_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, t.Any], None]]
 
 #: Callback that will be executed when a cache entry is removed.
 
@@ -92,6 +99,8 @@ class Cache:
             cache key.
         on_get: Callback which will be executed when a cache entry is retrieved.
             See :class:`T_ON_GET_CALLBACK` for details.
+        on_set: Callback which will be executed when a cache entry is set.
+            See :class:`T_ON_SET_CALLBACK` for details.
         on_delete: Callback which will be executed when a cache entry is removed.
             See :class:`T_ON_DELETE_CALLBACK` for details.
         stats: Cache statistics.
@@ -110,6 +119,7 @@ class Cache:
         default: t.Any = None,
         enable_stats: bool = False,
         on_get: T_ON_GET_CALLBACK = None,
+        on_set: T_ON_SET_CALLBACK = None,
         on_delete: T_ON_DELETE_CALLBACK = None,
     ):
         self.maxsize = maxsize
@@ -117,6 +127,7 @@ class Cache:
         self.timer = timer
         self.default = default
         self.on_get = on_get
+        self.on_set = on_set
         self.on_delete = on_delete
         self.stats = CacheStatsTracker(self, enable=enable_stats)
 
@@ -379,16 +390,22 @@ class Cache:
         if ttl is None:
             ttl = self.ttl
 
+        old_value = UNSET
         if key not in self._cache:
             self.evict()
+        else:
+            old_value = self._cache[key]
 
         # Delete key before setting it so that it moves to the end of the OrderedDict key list.
         # Needed for cache strategies that rely on the ordering of when keys were last inserted.
-        self._delete(key, RemovalCause.SET)
+        self._delete(key, RemovalCause._IGNORE)
         self._cache[key] = value
 
         if ttl and ttl > 0:
             self._expire_times[key] = self.timer() + ttl
+
+        if self.on_set:
+            self.on_set(key, value, old_value)
 
     def set_many(self, items: t.Mapping, ttl: t.Optional[T_TTL] = None) -> None:
         """
@@ -425,7 +442,7 @@ class Cache:
         try:
             value = self._cache[key]
             del self._cache[key]
-            if self.on_delete:
+            if cause != RemovalCause._IGNORE and self.on_delete:
                 self.on_delete(key, value, cause)
             count = 1
             if cause == RemovalCause.FULL:
