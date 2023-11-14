@@ -19,11 +19,28 @@ from .stats import CacheStatsTracker
 
 
 F = t.TypeVar("F", bound=t.Callable[..., t.Any])
+
+#: Decorator type.
 T_DECORATOR = t.Callable[[F], F]
+
+#: Possible types for TTL (time to live) value.
 T_TTL = t.Union[int, float]
+
+#: Possible types that can be used to filter cache keys.
 T_FILTER = t.Union[str, t.List[t.Hashable], t.Pattern, t.Callable]
 
+#: Callback that will be executed when a cache entry is retrieved. It is called with arguments
+#: ``(key, value, exists)`` where `key` is the cache key, `value` is the value retrieved (could be
+#: the default), and `exists` is whether the cache key exists or not.
+T_ON_GET_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, bool], None]]
 
+#: Callback that will be executed when a cache entry is removed. It is called with arguments
+#: ``(key, value, cause)`` where `key` is the cache key, `value` is the cached value at the time of
+#: deletion, and `cause` is the reason the key was removed (see :class:`RemovalCause` for enumerated
+#: causes).
+T_ON_DELETE_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, "RemovalCause"], None]]
+
+#: Sentinel value to indicate that an argument was not set.
 UNSET = object()
 
 
@@ -45,21 +62,6 @@ class RemovalCause(Enum):
     EXPIRED = auto()
     FULL = auto()
     POPITEM = auto()
-
-
-#: Callback that will be executed when a cache entry is retrieved.
-
-#: It is called with arguments ``(key, value, exists)`` where `key` is the cache key,
-#: `value` is the value retrieved (could be the default),
-#: and `exists` is whether the cache key exists or not.
-T_ON_GET_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, bool], None]]
-
-#: Callback that will be executed when a cache entry is removed.
-
-#: It is called with arguments ``(key, value, cause)`` where `key` is the cache key,
-#: `value` is the cached value at the time of deletion,
-#: and `cause` is the reason the key was removed (see :class:`RemovalCause` for enumerated causes).
-T_ON_DELETE_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, RemovalCause], None]]
 
 
 class Cache:
