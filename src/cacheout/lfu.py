@@ -59,7 +59,7 @@ class LFUCache(Cache):
 
     add.__doc__ = Cache.add.__doc__
 
-    def _delete(self, key: t.Hashable, cause: RemovalCause) -> int:
+    def _delete(self, key: t.Hashable, cause: t.Optional[RemovalCause] = None) -> int:
         count = super()._delete(key, cause)
 
         try:

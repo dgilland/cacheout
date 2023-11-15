@@ -61,14 +61,12 @@ class RemovalCause(Enum):
         FULL: indicates that the cache entry was removed because cache has been full (reached the
             maximum size limit).
         POPITEM: indicates that the cache entry was deleted by popitem().
-        _IGNORE: It's an internal member indicates you don't want to call on_delete callback.
     """
 
     DELETE = auto()
     EXPIRED = auto()
     FULL = auto()
     POPITEM = auto()
-    _IGNORE = auto()
 
 
 class Cache:
@@ -400,7 +398,7 @@ class Cache:
 
         # Delete key before setting it so that it moves to the end of the OrderedDict key list.
         # Needed for cache strategies that rely on the ordering of when keys were last inserted.
-        self._delete(key, RemovalCause._IGNORE)
+        self._delete(key)
         self._cache[key] = value
 
         if ttl and ttl > 0:
@@ -438,13 +436,13 @@ class Cache:
         with self._lock:
             return self._delete(key, RemovalCause.DELETE)
 
-    def _delete(self, key: t.Hashable, cause: RemovalCause) -> int:
+    def _delete(self, key: t.Hashable, cause: t.Optional[RemovalCause] = None) -> int:
         count = 0
 
         try:
             value = self._cache[key]
             del self._cache[key]
-            if cause != RemovalCause._IGNORE and self.on_delete:
+            if cause and self.on_delete:
                 self.on_delete(key, value, cause)
             count = 1
             if cause == RemovalCause.FULL:

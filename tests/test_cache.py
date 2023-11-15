@@ -5,7 +5,7 @@ import typing as t
 
 import pytest
 
-from cacheout import Cache, RemovalCause
+from cacheout import UNSET, Cache, RemovalCause
 
 
 parametrize = pytest.mark.parametrize
@@ -763,19 +763,19 @@ def test_cache_on_get(cache: Cache):
 
 def test_cache_on_set(cache: Cache):
     """Test that on_set(cache) callback."""
-    log = ""
+    log = {}
 
     def on_set(key, new_value, old_value):
         nonlocal log
-        log = f"{key}={new_value}, old_value={old_value}"
+        log = {"key": key, "new_value": new_value, "old_value": old_value}
 
     cache.on_set = on_set
 
     cache.set("a", 1)
-    assert re.match(r"^a=1, old_value=<object object at 0x.*>$", log)
+    assert log == {"key": "a", "new_value": 1, "old_value": UNSET}
 
     cache.set("a", 2)
-    assert log == "a=2, old_value=1"
+    assert log == {"key": "a", "new_value": 2, "old_value": 1}
 
 
 def test_cache_stats__disabled_by_default(cache: Cache):
