@@ -435,6 +435,11 @@ class Cache:
             return self._delete(key, RemovalCause.DELETE)
 
     def _delete(self, key: t.Hashable, cause: t.Optional[RemovalCause] = None) -> int:
+        """
+        Delete cache key and return number of entries deleted (``1`` or ``0``).
+
+        If cause is ``None``, on-delete callback won't be executed.
+        """
         count = 0
 
         try:

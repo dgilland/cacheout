@@ -7,9 +7,9 @@ from cacheout import Cache
 def cache() -> Cache:
     cache = Cache(maxsize=2)
     cache.stats.enable()
-    cache.add("1", "one")
-    cache.add("2", "two")
-    cache.add("3", "three")
+    cache.add("a", 1)
+    cache.add("b", 2)
+    cache.add("c", 3)
     return cache
 
 
@@ -20,8 +20,8 @@ def test_stats_tracker_repr(cache: Cache):
 
 def test_stats_tracker_info(cache: Cache):
     """Test that cache.stats.info() gets statistics."""
-    assert cache.get("1") is None
-    assert cache.get("2") == "two"
+    assert cache.get("a") is None
+    assert cache.get("b") == 2
 
     info = cache.stats.info()
     assert info is not None
@@ -67,8 +67,8 @@ def test_stats_tracker_reset(cache: Cache):
 
 def test_stats_tracker_pause(cache: Cache):
     """Test that cache.stats.pause() pauses statistics."""
-    assert cache.get("1") is None
-    assert cache.get("2") == "two"
+    assert cache.get("a") is None
+    assert cache.get("b") == 2
 
     info = cache.stats.info()
     assert info is not None
@@ -84,9 +84,9 @@ def test_stats_tracker_pause(cache: Cache):
     assert cache.stats.is_paused() is True
     assert cache.stats.is_active() is False
 
-    assert cache.get("1") is None
-    assert cache.get("2") == "two"
-    cache.add("4", "four")
+    assert cache.get("a") is None
+    assert cache.get("b") == 2
+    cache.add("d", 4)
 
     info = cache.stats.info()
     assert info is not None
@@ -109,8 +109,8 @@ def test_stats_tracker_resume(cache: Cache):
     assert cache.stats.is_paused() is False
     assert cache.stats.is_active() is True
 
-    assert cache.get("1") is None
-    assert cache.get("2") == "two"
+    assert cache.get("a") is None
+    assert cache.get("b") == 2
 
     info = cache.stats.info()
     assert info is not None
@@ -150,10 +150,10 @@ def test_stats_tracker_enable(cache: Cache):
     assert cache.stats.is_enabled() is True
     assert cache.stats.is_active() is True
 
-    assert cache.get("1") is None
-    assert cache.get("2") == "two"
-    cache.add("4", "four")
-    cache.add("5", "five")
+    assert cache.get("a") is None
+    assert cache.get("b") == 2
+    cache.add("d", 4)
+    cache.add("e", 5)
 
     info = cache.stats.info()
     assert info is not None
