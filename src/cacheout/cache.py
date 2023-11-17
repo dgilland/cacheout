@@ -34,11 +34,9 @@ T_FILTER = t.Union[str, t.List[t.Hashable], t.Pattern, t.Callable]
 #: the default), and `exists` is whether the cache key exists or not.
 T_ON_GET_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, bool], None]]
 
-#: Callback that will be executed when a cache entry is set.
-
-#: It is called with arguments ``(key, new_value, old_value)`` where `key` is the cache key,
-#: `new_value` is the value is set,
-#: and `old_value` is the value is replaced(if the key didn't exist before, it's ``UNSET``).
+#: Callback that will be executed when a cache entry is set. It is called with arguments
+#: ``(key, new_value, old_value)`` where `key` is the cache key, `new_value` is the value is set,
+#: and `old_value` is the value it replaced (if the key didn't exist before, it's :const:`UNSET`).
 T_ON_SET_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, t.Any], None]]
 
 #: Callback that will be executed when a cache entry is removed. It is called with arguments
