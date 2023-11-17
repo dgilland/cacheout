@@ -2,7 +2,7 @@
 
 __version__ = "0.15.0"
 
-from .cache import Cache, RemovalCause
+from .cache import UNSET, Cache, RemovalCause
 from .fifo import FIFOCache
 from .lfu import LFUCache
 from .lifo import LIFOCache

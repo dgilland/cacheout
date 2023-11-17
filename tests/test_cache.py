@@ -5,7 +5,7 @@ import typing as t
 
 import pytest
 
-from cacheout import Cache, RemovalCause
+from cacheout import UNSET, Cache, RemovalCause
 
 
 parametrize = pytest.mark.parametrize
@@ -726,10 +726,6 @@ def test_cache_on_delete(cache: Cache, timer: Timer):
     cache.delete("DELETE")
     assert log == f"DELETE=1, RemovalCause={RemovalCause.DELETE.value}"
 
-    cache.set("SET", 1)
-    cache.set("SET", 2)
-    assert log == f"SET=1, RemovalCause={RemovalCause.SET.value}"
-
     cache.clear()
     cache.set("POPITEM", 1)
     cache.popitem()
@@ -763,6 +759,23 @@ def test_cache_on_get(cache: Cache):
 
     cache.get("miss")
     assert log == "miss=None, existed=False"
+
+
+def test_cache_on_set(cache: Cache):
+    """Test that on_set(cache) callback."""
+    log = {}
+
+    def on_set(key, new_value, old_value):
+        nonlocal log
+        log = {"key": key, "new_value": new_value, "old_value": old_value}
+
+    cache.on_set = on_set
+
+    cache.set("a", 1)
+    assert log == {"key": "a", "new_value": 1, "old_value": UNSET}
+
+    cache.set("a", 2)
+    assert log == {"key": "a", "new_value": 2, "old_value": 1}
 
 
 def test_cache_stats__disabled_by_default(cache: Cache):
