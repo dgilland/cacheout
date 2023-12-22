@@ -42,7 +42,6 @@ Roadmap
 =======
 
 - Layered caching (multi-level caching)
-- Additional cache event listener support (e.g. on-get, on-set)
 
 
 Requirements
@@ -248,6 +247,20 @@ Check if key exists with ``cache.has()`` and ``key in cache``:
 
     assert cache.has('a')
     assert 'a' in cache
+
+
+Use callbacks to be notified of on-get, on-set, and on-delete events:
+
+.. code-block:: python
+
+    def on_get(key, value, exists):
+        pass
+
+    def on_set(key, new_value, old_value):
+        pass
+
+    def on_delete(key, value, cause):
+        pass
 
 
 Enable cache statistics:

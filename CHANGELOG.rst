@@ -2,6 +2,10 @@ Changelog
 =========
 
 
+- Add ``Cache.on_get`` callback hook. Thanks uncle-lv_!
+- Add ``Cache.on_set`` callback hook. Thanks uncle-lv_!
+
+
 v0.15.0 (2023-11-03)
 --------------------
 
