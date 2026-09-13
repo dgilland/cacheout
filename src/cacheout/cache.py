@@ -523,7 +523,7 @@ class Cache:
             expires_on: Timestamp of when the key is considered expired. Defaults to ``None`` which
                 uses the current value returned from :meth:`timer`.
         """
-        if not expires_on:
+        if expires_on is None:
             expires_on = self.timer()
 
         try:
