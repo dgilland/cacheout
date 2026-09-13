@@ -7,7 +7,6 @@ import pytest
 
 from cacheout import UNSET, Cache, RemovalCause
 
-
 parametrize = pytest.mark.parametrize
 
 
@@ -797,3 +796,16 @@ def test_cache_stats_configure(cache: Cache):
     assert cache.stats.is_enabled() is True
     cache.configure(enable_stats=False)
     assert cache.stats.is_enabled() is False
+
+
+def test_cache_memoize_argument_boundaries(cache: Cache):
+    """Different integer argument partitions must not share cached results."""
+
+    @cache.memoize()
+    def join_numbers(*values):
+        return values
+
+    assert join_numbers(1, 23) == (1, 23)
+    assert join_numbers(12, 3) == (12, 3)
+    assert join_numbers(123) == (123,)
+    assert join_numbers.cache_key(1, 23) != join_numbers.cache_key(12, 3)
