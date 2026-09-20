@@ -15,15 +15,13 @@
 
 # -- Project information -----------------------------------------------------
 
-try:
-    import importlib.metadata as importlib_metadata
-except ImportError:  # Python 3.7
-    import importlib_metadata
+import importlib.metadata
 
-pkg_info = importlib_metadata.metadata("cacheout")
+
+pkg_info = importlib.metadata.metadata("cacheout")
 
 project = pkg_info["Name"]
-author = pkg_info["Author"]
+author = pkg_info["Author-email"]
 description = pkg_info["Summary"]
 copyright = "2018, " + author
 
