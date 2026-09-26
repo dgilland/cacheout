@@ -1,9 +1,7 @@
 """The cache module provides the :class:`Cache` class which is used as the base for all other cache
 types."""
 
-import asyncio
 from collections import OrderedDict
-from collections.abc import Mapping
 from decimal import Decimal
 from enum import Enum, auto
 import fnmatch
@@ -19,14 +17,14 @@ from .stats import CacheStatsTracker
 
 F = t.TypeVar("F", bound=t.Callable[..., t.Any])
 
-#: Decorator type.
-T_DECORATOR = t.Callable[[F], F]
+#: Memoized decorator type.
+T_MEMOIZED_DECORATOR = t.Callable[[F], "MemoizedFunction"]
 
 #: Possible types for TTL (time to live) value.
 T_TTL = t.Union[int, float]
 
 #: Possible types that can be used to filter cache keys.
-T_FILTER = t.Union[str, t.List[t.Hashable], t.Pattern, t.Callable]
+T_FILTER = t.Union[str, t.List[t.Hashable], t.Pattern[str], t.Callable[[t.Hashable], t.Any]]
 
 #: Callback that will be executed when a cache entry is retrieved. It is called with arguments
 #: ``(key, value, exists)`` where `key` is the cache key, `value` is the value retrieved (could be
@@ -46,6 +44,15 @@ T_ON_DELETE_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, "RemovalCause"]
 
 #: Sentinel value to indicate that an argument was not set.
 UNSET = object()
+
+
+class MemoizedFunction(t.Protocol):
+    cache: "Cache"
+    cache_key: t.Callable[..., str]
+    uncached: t.Callable[..., t.Any]
+    __name__: str
+
+    def __call__(self, *args: t.Any, **kwargs: t.Any) -> t.Any: ...
 
 
 class RemovalCause(Enum):
@@ -103,7 +110,7 @@ class Cache:
         stats: Cache statistics.
     """
 
-    _cache: OrderedDict
+    _cache: OrderedDict[t.Hashable, t.Any]
     _expire_times: t.Dict[t.Hashable, T_TTL]
     _lock: RLock
 
@@ -138,7 +145,7 @@ class Cache:
         self._expire_times: t.Dict[t.Hashable, T_TTL] = {}
         self._lock = RLock()
 
-    def configure(  # noqa: C901
+    def configure(  # noqa: PLR0912
         self,
         *,
         maxsize: t.Optional[int] = None,
@@ -355,7 +362,7 @@ class Cache:
             return
         self._set(key, value, ttl=ttl)
 
-    def add_many(self, items: Mapping, ttl: t.Optional[T_TTL] = None) -> None:
+    def add_many(self, items: t.Mapping, ttl: t.Optional[T_TTL] = None) -> None:
         """
         Add multiple cache keys at once.
 
@@ -606,8 +613,8 @@ class Cache:
     def _popitem(self, cause: RemovalCause):
         try:
             key = next(self)
-        except StopIteration:
-            raise KeyError("popitem(): cache is empty")
+        except StopIteration as exc:
+            raise KeyError("popitem(): cache is empty") from exc
 
         value = self._cache[key]
         self._delete(key, cause)
@@ -615,29 +622,33 @@ class Cache:
         return key, value
 
     def _filter_keys(self, iteratee: T_FILTER) -> t.List[t.Hashable]:
-        # By default, we'll filter against cache storage.
-        target: t.Iterable = self._cache
+        target: t.Iterable[t.Hashable] = self._cache
+        filter_by: t.Callable[[t.Hashable], bool]
 
         if isinstance(iteratee, str):
-            filter_by = re.compile(fnmatch.translate(iteratee)).match
+            pattern = re.compile(fnmatch.translate(iteratee))
+
+            def filter_by(key: t.Hashable) -> bool:
+                return isinstance(key, str) and pattern.match(key) is not None
+
         elif isinstance(iteratee, t.Pattern):
-            filter_by = iteratee.match
+
+            def filter_by(key: t.Hashable) -> bool:
+                return isinstance(key, str) and iteratee.match(key) is not None
+
         elif callable(iteratee):
             filter_by = iteratee
         else:
-            # We're assuming that iteratee is now an iterable that we want to filter cache keys by.
-            # We can optimize the filtering by making the filter target be the list of keys and
-            # checking whether those keys are in the cache. I.e. we'll iterate over the iteratee
-            # keys can check if the key is in the cache as opposed to iterating over the cache and
-            # checking if a key is in iteratee keys.
             target = iteratee
 
-            def filter_by(key):  # type: ignore
+            def filter_by(key: t.Hashable) -> bool:
                 return key in self._cache
 
         return [key for key in target if filter_by(key)]
 
-    def memoize(self, *, ttl: t.Optional[T_TTL] = None, typed: bool = False) -> T_DECORATOR:
+    def memoize(
+        self, *, ttl: t.Optional[T_TTL] = None, typed: bool = False
+    ) -> T_MEMOIZED_DECORATOR:
         """
         Decorator that wraps a function with a memoizing callable and works on both synchronous and
         asynchronous functions.
@@ -658,14 +669,14 @@ class Cache:
         """
         marker = (object(),)
 
-        def decorator(func):
+        def decorator(func: F) -> MemoizedFunction:
             prefix = f"{func.__module__}.{func.__name__}:"
             argspec = inspect.getfullargspec(func)
 
             def cache_key(*args, **kwargs):
                 return _make_memoize_key(func, args, kwargs, marker, typed, argspec, prefix)
 
-            if asyncio.iscoroutinefunction(func):
+            if inspect.iscoroutinefunction(func):
 
                 @wraps(func)
                 async def decorated(*args, **kwargs):
@@ -677,7 +688,6 @@ class Cache:
                         self.set(key, value, ttl=ttl)
 
                     return value
-
             else:
 
                 @wraps(func)
@@ -691,19 +701,20 @@ class Cache:
 
                     return value
 
-            decorated.cache = self
-            decorated.cache_key = cache_key
-            decorated.uncached = func
+            memo = t.cast(MemoizedFunction, decorated)
+            memo.cache = self
+            memo.cache_key = cache_key
+            memo.uncached = func
 
-            return decorated
+            return memo
 
         return decorator
 
 
-def _make_memoize_key(
-    func: t.Callable,
+def _make_memoize_key(  # noqa: PLR0917
+    func: t.Callable[..., t.Any],
     args: tuple,
-    kwargs: dict,
+    kwargs: dict[str, t.Any],
     marker: tuple,
     typed: bool,
     argspec: inspect.FullArgSpec,

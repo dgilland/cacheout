@@ -11,7 +11,7 @@ Where <task> is a function defined below with the @task decorator.
 from functools import partial
 import os
 
-from invoke import Exit, UnexpectedExit, run as _run, task
+from invoke import Context, Exit, UnexpectedExit, run as _run, task
 
 
 PACKAGE_NAME = "cacheout"
@@ -25,62 +25,57 @@ EXIT_EXCEPTIONS = (Exit, UnexpectedExit, SystemExit)
 run = partial(_run, pty=True)
 
 
-@task
-def black(ctx, quiet=False):
-    """Autoformat code using black."""
-    run(f"black {LINT_TARGETS}", hide=quiet)
-
-
-@task
-def isort(ctx, quiet=False):
-    """Autoformat Python imports."""
-    run(f"isort {LINT_TARGETS}", hide=quiet)
-
-
-@task
-def docformatter(ctx):
-    """Autoformat docstrings using docformatter."""
-    run(
-        f"docformatter -r {LINT_TARGETS} "
-        f"--in-place --pre-summary-newline --wrap-descriptions 100 --wrap-summaries 100"
-    )
-
-
-@task
-def fmt(ctx):
+@task()
+def fmt(ctx: Context, target: str = "", quiet: bool = False) -> None:
     """Autoformat code and docstrings."""
-    print("Running docformatter")
-    docformatter(ctx)
+    if not quiet:
+        print("Running ruff format")
+    ruff_format(ctx, target, quiet=quiet)
 
-    print("Running isort")
-    isort(ctx, quiet=True)
-
-    print("Running black")
-    black(ctx, quiet=True)
-
-
-@task
-def flake8(ctx):
-    """Check code for PEP8 violations using flake8."""
-    run(f"flake8 --format=pylint {LINT_TARGETS}")
+    if not quiet:
+        print("Running ruff lint fixes")
+    ruff_fix(ctx, target, quiet=quiet)
 
 
-@task
-def pylint(ctx):
+@task()
+def ruff_format(ctx: Context, target: str = "", quiet: bool = False) -> None:
+    """Autoformat code and docstrings using ruff."""
+    run(f"ruff format {target}", hide=quiet)
+
+
+@task()
+def ruff_fix(ctx: Context, target: str = "", quiet: bool = False) -> None:
+    """Autofix fixable lint issues using ruff."""
+    run(f"ruff check {target} --fix", hide=quiet)
+
+
+@task()
+def ruff_format_check(ctx: Context) -> None:
     """Check code for static errors using pylint."""
-    run(f"pylint {LINT_TARGETS}")
+    run("ruff format --check")
 
 
-@task
-def mypy(ctx):
+@task()
+def ruff_check(ctx: Context) -> None:
+    """Check code for static errors using pylint."""
+    run("ruff check")
+
+
+@task()
+def mypy(ctx: Context) -> None:
     """Check code using mypy type checker."""
     run(f"mypy {LINT_TARGETS}")
 
 
-@task
-def lint(ctx):
+@task()
+def lint(ctx: Context) -> None:
     """Run linters."""
-    linters = {"flake8": flake8, "pylint": pylint, "mypy": mypy}
+    linters = {
+        "ruff-format-check": ruff_format_check,
+        "ruff-check": ruff_check,
+        "mypy": mypy,
+    }
+
     failures = []
 
     print(f"Preparing to run linters: {', '.join(linters)}\n")
@@ -102,7 +97,7 @@ def lint(ctx):
 
 
 @task(help={"args": "Override default pytest arguments"})
-def test(ctx, args=f"{TEST_TARGETS} --cov={PACKAGE_NAME}"):
+def test(ctx: Context, args: str = f"{TEST_TARGETS} --cov={PACKAGE_NAME}"):
     """Run unit tests using pytest."""
     tox_env_site_packages_dir = os.getenv("TOX_ENV_SITE_PACKAGES_DIR")
     if tox_env_site_packages_dir:
@@ -113,8 +108,8 @@ def test(ctx, args=f"{TEST_TARGETS} --cov={PACKAGE_NAME}"):
     run(f"pytest {args}")
 
 
-@task
-def ci(ctx):
+@task()
+def ci(ctx: Context) -> None:
     """Run linters and tests."""
     print("Building package")
     build(ctx)
@@ -129,8 +124,8 @@ def ci(ctx):
     test(ctx)
 
 
-@task
-def docs(ctx, serve=False, bind="127.0.0.1", port=8000):
+@task()
+def docs(ctx: Context, serve: bool = False, bind: str = "127.0.0.1", port: int = 8000) -> None:
     """Build docs."""
     run("rm -rf docs/_build")
     run("sphinx-build -q -W -b html docs docs/_build/html")
@@ -140,8 +135,8 @@ def docs(ctx, serve=False, bind="127.0.0.1", port=8000):
         run(f"python -m http.server -b {bind} --directory docs/_build/html {port}", hide=True)
 
 
-@task
-def build(ctx):
+@task()
+def build(ctx: Context) -> None:
     """Build Python package."""
     run("rm -rf dist build docs/_build")
     run("python -m build")
@@ -151,10 +146,10 @@ def build(ctx):
 def clean(ctx):
     """Remove temporary files related to development."""
     run("find . -type f -name '*.py[cod]' -delete -o -type d -name __pycache__ -delete")
-    run("rm -rf .tox .coverage .cache .pytest_cache .mypy_cache **/.egg* **/*.egg* dist build")
+    run("rm -rf .tox .coverage .cache .pytest_cache **/.egg* **/*.egg* dist build .mypy_cache")
 
 
 @task(pre=[build])
-def release(ctx):
+def release(ctx: Context) -> None:
     """Release Python package."""
     run("twine upload dist/*")

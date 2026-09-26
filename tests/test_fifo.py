@@ -12,6 +12,9 @@ def test_fifo_does_not_override_cache_class():
             "__dict__",
             "__init_subclass__",
             "__subclasshook__",
+            "__firstlineno__",
         ):
             continue
-        assert value is getattr(Cache, name)
+        assert value is getattr(Cache, name), (
+            f"FIFOCache.{name}[{value}] should equal Cache.{name}[{getattr(Cache, name)}]"
+        )

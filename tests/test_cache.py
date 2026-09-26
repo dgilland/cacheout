@@ -1,6 +1,5 @@
 import asyncio
 import re
-import sys
 import typing as t
 
 import pytest
@@ -492,6 +491,7 @@ def test_cache_memoize_func_attrs(cache: Cache):
     assert mark_z == marker
 
 
+@pytest.mark.asyncio
 async def test_cache_memoize_async(cache: Cache):
     """Test that cache.memoize() can decorate async functions."""
     marker = 1
@@ -499,8 +499,6 @@ async def test_cache_memoize_async(cache: Cache):
     @cache.memoize()
     async def func(a):
         return a, marker
-
-    assert asyncio.iscoroutinefunction(func)
 
     assert len(cache) == 0
 
@@ -522,7 +520,7 @@ async def test_cache_memoize_async(cache: Cache):
     assert len(cache) == 2
 
 
-@pytest.mark.skipif(sys.version_info[:2] <= (3, 8), reason="test not compatible with python <= 3.8")
+@pytest.mark.asyncio
 async def test_cache_memoize_async_runtime_error_regression(cache: Cache):
     """
     Test that cache.memoize() doesn't raise RuntimeError.
