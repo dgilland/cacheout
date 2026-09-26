@@ -426,7 +426,7 @@ class Cache:
 
     def _set_many(self, items: t.Mapping, ttl: t.Optional[T_TTL] = None) -> None:
         for key, value in items.items():
-            self._set(key, value, ttl=ttl)
+            self.set(key, value, ttl=ttl)
 
     def delete(self, key: t.Hashable) -> int:
         """

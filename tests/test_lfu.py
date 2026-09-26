@@ -118,3 +118,22 @@ def test_lfu_access_count_using_default_callable():
 
     assert value is False
     assert cache._access_counts["a"] == -1
+
+
+def test_lfu_set_many_respects_maxsize():
+    cache = LFUCache(maxsize=2)
+    cache.set_many({"a": 1, "b": 2, "c": 3})
+    assert list(cache.keys()) == ["b", "c"]
+    assert cache.popitem() == ("b", 2)
+    assert cache.popitem() == ("c", 3)
+
+
+def test_lfu_set_many_preserves_eviction_order():
+    cache = LFUCache(maxsize=2)
+    cache.set("hot", 1)
+    cache.get("hot")
+    cache.set_many({"cold": 2})
+    cache.set("next", 3)
+    assert "hot" in cache
+    assert "cold" not in cache
+    assert "next" in cache
