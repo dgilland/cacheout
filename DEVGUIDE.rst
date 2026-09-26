@@ -36,7 +36,6 @@ black_         Code formatter              ``pyproject.toml``
 isort_         Import statement formatter  ``setup.cfg``
 docformatter_  Docstring formatter         ``setup.cfg``
 flake8_        Code linter                 ``setup.cfg``
-pylint_        Code linter                 ``pylintrc``
 mypy_          Type checker                ``setup.cfg``
 pytest_        Test framework              ``setup.cfg``
 tox_           Test environment manager    ``tox.ini``
@@ -81,7 +80,6 @@ This is the same as running each linter individually:
 ::
 
     inv flake8
-    inv pylint
     inv mypy
 
 
@@ -190,7 +188,6 @@ This project uses `Github Actions <https://docs.github.com/en/free-pro-team@late
 .. _isort: https://pycqa.github.io/isort/
 .. _docformatter: https://github.com/myint/docformatter
 .. _flake8: https://flake8.pycqa.org
-.. _pylint: https://www.pylint.org/
 .. _mypy: http://mypy-lang.org/
 .. _pytest: https://docs.pytest.org
 .. _tox: https://tox.readthedocs.io

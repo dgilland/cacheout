@@ -17,19 +17,19 @@ class LFUCache(Cache):
     entry with the lowest access count is removed first.
     """
 
-    _access_counts: Counter
+    _access_counts: Counter[t.Hashable]
 
     def setup(self) -> None:
         super().setup()
-        self._access_counts: Counter = Counter()
+        self._access_counts: Counter[t.Hashable] = Counter()
 
     def __next__(self) -> t.Hashable:
         with self._lock:
             try:
                 return self._access_counts.most_common(n=1)[0][0]
-            except (ValueError, IndexError):  # pragma: no cover
+            except (ValueError, IndexError) as exc:  # pragma: no cover
                 # Empty cache.
-                raise StopIteration
+                raise StopIteration from exc
 
     def _touch(self, key: t.Hashable) -> None:
         # Decrement access counts so we can use Counter.most_common() to return the least accessed

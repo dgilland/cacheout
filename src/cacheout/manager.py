@@ -22,7 +22,8 @@ class CacheManager:
         >>> assert "B" in cacheset
 
         >>> # Replace bulk caches after initialization
-        >>> class MyCache(Cache): pass
+        >>> class MyCache(Cache):
+        ...     pass
         >>> cacheset.setup({"C": {"cache_class": MyCache}, "D": {}})
         >>> assert "A" not in cacheset
         >>> assert "B" not in cacheset
@@ -49,7 +50,11 @@ class CacheManager:
         cache_class (callable, optional): A factory function used when creating a cache.
     """
 
-    def __init__(self, settings: t.Optional[dict] = None, cache_class: t.Type[Cache] = Cache):
+    def __init__(
+        self,
+        settings: t.Optional[dict] = None,
+        cache_class: t.Type[Cache] = Cache,
+    ):
         self.cache_class = cache_class
         self._lock = RLock()
 
@@ -113,11 +118,11 @@ class CacheManager:
     def __getitem__(self, name: t.Hashable) -> t.Any:
         try:
             return self._caches[name]
-        except KeyError:
+        except KeyError as exc:
             raise KeyError(
                 f"Cache not configured for {name}. Use 'configure({name!r}, **options)' to"
                 " configure it."
-            )
+            ) from exc
 
     def __iter__(self) -> t.Iterator[t.Tuple[t.Hashable, Cache]]:
         with self._lock:
