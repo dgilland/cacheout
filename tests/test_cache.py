@@ -6,7 +6,6 @@ import pytest
 
 from cacheout import UNSET, Cache, RemovalCause
 
-
 parametrize = pytest.mark.parametrize
 
 
@@ -806,3 +805,16 @@ def test_cache_expired_accepts_zero_timestamp(cache: Cache, timer: Timer):
     assert cache.expired("key", expires_on=5)
     assert cache.expired("key")
     assert cache.expired("missing", expires_on=0)
+
+
+def test_cache_memoize_argument_boundaries(cache: Cache):
+    """Different integer argument partitions must not share cached results."""
+
+    @cache.memoize()
+    def join_numbers(*values):
+        return values
+
+    assert join_numbers(1, 23) == (1, 23)
+    assert join_numbers(12, 3) == (12, 3)
+    assert join_numbers(123) == (123,)
+    assert join_numbers.cache_key(1, 23) != join_numbers.cache_key(12, 3)

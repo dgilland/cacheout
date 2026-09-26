@@ -15,7 +15,6 @@ import typing as t
 
 from .stats import CacheStatsTracker
 
-
 F = t.TypeVar("F", bound=t.Callable[..., t.Any])
 
 #: Memoized decorator type.
@@ -747,8 +746,8 @@ def _make_memoize_key(  # noqa: PLR0917
     if typed and kwargs:
         key_args += tuple(type(val) for _, val in sorted(kwargs.items()))
 
-    # Hash everything in key_args and concatenate into a single byte string.
-    raw_key = "".join(str(_hash_value(key_arg)) for key_arg in key_args)
+    # Preserve the boundaries between hashed arguments before hashing the whole key.
+    raw_key = repr(tuple(_hash_value(key_arg) for key_arg in key_args))
 
     # Combine prefix with md5 hash of raw key so that keys are normalized in length.
     return prefix + hashlib.md5(raw_key.encode()).hexdigest()
