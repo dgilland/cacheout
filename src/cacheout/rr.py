@@ -17,5 +17,5 @@ class RRCache(Cache):
         with self._lock:
             try:
                 return random.choice(list(self._cache.keys()))
-            except IndexError:  # pragma: no cover
-                raise StopIteration
+            except IndexError as exc:  # pragma: no cover
+                raise StopIteration from exc
