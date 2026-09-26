@@ -796,6 +796,17 @@ def test_cache_stats_configure(cache: Cache):
     assert cache.stats.is_enabled() is False
 
 
+def test_cache_expired_accepts_zero_timestamp(cache: Cache, timer: Timer):
+    """An explicit zero timestamp must not be replaced with the current time."""
+    cache.set("key", "value", ttl=5)
+    timer.time = 10
+    assert not cache.expired("key", expires_on=0)
+    assert not cache.expired("key", expires_on=4)
+    assert cache.expired("key", expires_on=5)
+    assert cache.expired("key")
+    assert cache.expired("missing", expires_on=0)
+
+
 def test_cache_memoize_argument_boundaries(cache: Cache):
     """Different integer argument partitions must not share cached results."""
 
