@@ -6,6 +6,7 @@ import pytest
 
 from cacheout import UNSET, Cache, RemovalCause
 
+
 parametrize = pytest.mark.parametrize
 
 

@@ -15,6 +15,7 @@ import typing as t
 
 from .stats import CacheStatsTracker
 
+
 F = t.TypeVar("F", bound=t.Callable[..., t.Any])
 
 #: Memoized decorator type.
