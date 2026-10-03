@@ -2,6 +2,9 @@ Changelog
 =========
 
 
+v0.17.0 (2026-10-03)
+--------------------
+
 - Apply cache replacement policy hooks during bulk writes. Thanks vitalivo_!
 - Respect an explicit zero timestamp in ``Cache.expired``. Thanks vitalivo_!
 - Preserve argument boundaries when constructing memoization keys. Thanks vitalivo_!
