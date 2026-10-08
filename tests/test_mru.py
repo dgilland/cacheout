@@ -12,6 +12,7 @@ random = SystemRandom()
 @pytest.fixture
 def cache() -> MRUCache:
     _cache = MRUCache(maxsize=10)
+    assert _cache.maxsize is not None
     for n in range(_cache.maxsize):
         _cache.set(n, n)
     assert _cache.full()
@@ -21,6 +22,7 @@ def cache() -> MRUCache:
 def assert_keys_evicted_in_reverse_order(cache: MRUCache, keys: list):
     """Assert that cache keys are evicted in the reverse order as `keys`."""
     keys = keys.copy()
+    assert cache.maxsize is not None
     for n in range(cache.maxsize, cache.maxsize * 2):
         cache.set(n, n)
         assert cache.full()

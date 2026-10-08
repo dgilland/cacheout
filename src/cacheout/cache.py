@@ -25,7 +25,7 @@ T_MEMOIZED_DECORATOR = t.Callable[[F], "MemoizedFunction"]
 T_TTL = t.Union[int, float]
 
 #: Possible types that can be used to filter cache keys.
-T_FILTER = t.Union[str, t.List[t.Hashable], t.Pattern[str], t.Callable[[t.Hashable], t.Any]]
+T_FILTER = t.Union[str, t.Sequence[t.Hashable], t.Pattern[str], t.Callable[[t.Hashable], t.Any]]
 
 #: Callback that will be executed when a cache entry is retrieved. It is called with arguments
 #: ``(key, value, exists)`` where `key` is the cache key, `value` is the value retrieved (could be
@@ -118,7 +118,7 @@ class Cache:
     def __init__(
         self,
         *,
-        maxsize: int = 256,
+        maxsize: t.Optional[int] = 256,
         ttl: T_TTL = 0,
         timer: t.Callable[[], T_TTL] = time.time,
         default: t.Any = None,
