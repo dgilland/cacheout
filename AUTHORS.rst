@@ -15,3 +15,4 @@ Contributors
 - AllinolCP, `AllinolCP@github <https://github.com/AllinolCP>`_
 - uncle-lv, `uncle-lv@github <https://github.com/uncle-lv>`_
 - Vitaliy, `vitalivo@github <https://github.com/vitalivo>`_
+- fhgffy, `fhgffy@github <https://github.com/fhgffy>`_
