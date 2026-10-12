@@ -380,7 +380,8 @@ class Cache:
         Set cache key/value and replace any previously set cache key.
 
         If the cache key previously existed, setting it will move it to the end of the cache stack
-        which means it would be evicted last.
+        which means it would be evicted last. If calculating the expiration raises an exception,
+        the existing entries and their expiration times are left unchanged.
 
         Args:
             key: Cache key to set.
@@ -395,6 +396,9 @@ class Cache:
         if ttl is None:
             ttl = self.ttl
 
+        # Calculate the deadline before replacing or evicting any existing entries.
+        expire_time = self.timer() + ttl if ttl and ttl > 0 else None
+
         old_value = UNSET
         if key not in self._cache:
             self.evict()
@@ -406,8 +410,8 @@ class Cache:
         self._delete(key)
         self._cache[key] = value
 
-        if ttl and ttl > 0:
-            self._expire_times[key] = self.timer() + ttl
+        if expire_time is not None:
+            self._expire_times[key] = expire_time
 
         if self.on_set:
             self.on_set(key, value, old_value)
