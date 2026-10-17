@@ -1,3 +1,5 @@
+from threading import Event, RLock, Thread
+
 import pytest
 
 from cacheout import Cache
@@ -32,6 +34,65 @@ def test_stats_tracker_info(cache: Cache):
     assert info.miss_rate == 0.8
     assert info.eviction_rate == 0.2
     assert info.entry_count == 2
+
+
+def test_stats_tracker_info_does_not_invert_cache_lock(monkeypatch):
+    # 2026-10-11: Coordinate both lock acquisitions without leaving blocked threads behind.
+    cache_locked = Event()
+    reading_length = Event()
+    errors = []
+    snapshots = []
+
+    class CoordinatedCache(Cache):
+        def __len__(self):
+            reading_length.set()
+            return super().__len__()
+
+    class BoundedLock:
+        def __init__(self):
+            self.lock = RLock()
+
+        def __enter__(self):
+            if not self.lock.acquire(timeout=5):
+                raise TimeoutError("statistics lock blocked by the snapshot")
+            return self
+
+        def __exit__(self, *args):
+            self.lock.release()
+
+    cache = CoordinatedCache(enable_stats=True)
+    cache.set("key", "value")
+    reading_length.clear()
+    monkeypatch.setattr(cache.stats, "_lock", BoundedLock())
+
+    def get_value():
+        try:
+            with cache._lock:
+                cache_locked.set()
+                assert reading_length.wait(5)
+                assert cache.get("key") == "value"
+        except Exception as exc:
+            errors.append(exc)
+
+    def get_info():
+        try:
+            snapshots.append(cache.stats.info())
+        except Exception as exc:
+            errors.append(exc)
+
+    getter = Thread(target=get_value, daemon=True)
+    getter.start()
+    assert cache_locked.wait(5)
+    reader = Thread(target=get_info, daemon=True)
+    reader.start()
+    getter.join(6)
+    reader.join(6)
+    assert not getter.is_alive()
+    assert not reader.is_alive()
+    assert errors == []
+    assert len(snapshots) == 1
+    assert snapshots[0].hit_count == 1
+    assert snapshots[0].entry_count == 1
 
 
 def test_stats_tracker_info_to_dict(cache: Cache):
