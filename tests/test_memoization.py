@@ -43,6 +43,15 @@ def test_memoize_cache(memoizer: t.Callable, cache_class: t.Type[Cache]):
 
     assert isinstance(func.cache, cache_class)
 
+    @memoizer(maxsize=None)
+    def unbounded(value: int) -> int:
+        return value
+
+    for value in range(300):
+        assert unbounded(value) == value
+    assert len(unbounded.cache) == 300
+    assert not unbounded.cache.full()
+
     patch = f"cacheout.memoization.{cache_class.__name__}"
 
     with mock.patch(patch) as mocked:

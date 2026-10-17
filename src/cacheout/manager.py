@@ -53,7 +53,7 @@ class CacheManager:
     def __init__(
         self,
         settings: t.Optional[dict] = None,
-        cache_class: t.Type[Cache] = Cache,
+        cache_class: t.Callable[..., Cache] = Cache,
     ):
         self.cache_class = cache_class
         self._lock = RLock()
@@ -103,7 +103,7 @@ class CacheManager:
             self.register(name, self._create_cache(**options))
 
     def _create_cache(
-        self, cache_class: t.Optional[t.Type[Cache]] = None, **options: t.Any
+        self, cache_class: t.Optional[t.Callable[..., Cache]] = None, **options: t.Any
     ) -> Cache:
         cache_class = cache_class or self.cache_class
         return cache_class(**options)

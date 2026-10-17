@@ -14,7 +14,7 @@ DEFAULT_MAXSIZE = 128
 
 
 def memoize(
-    maxsize: int = DEFAULT_MAXSIZE, ttl: T_TTL = 0, typed: bool = False
+    maxsize: int | None = DEFAULT_MAXSIZE, ttl: T_TTL = 0, typed: bool = False
 ) -> T_MEMOIZED_DECORATOR:
     """
     Decorator that wraps a function with a memoizing callable and works on both synchronous and
@@ -38,42 +38,42 @@ def memoize(
 
 
 def fifo_memoize(
-    maxsize: int = DEFAULT_MAXSIZE, ttl: T_TTL = 0, typed: bool = False
+    maxsize: int | None = DEFAULT_MAXSIZE, ttl: T_TTL = 0, typed: bool = False
 ) -> T_MEMOIZED_DECORATOR:
     """Like :func:`memoize` except it uses :class:`.FIFOCache`."""
     return FIFOCache(maxsize=maxsize, ttl=ttl).memoize(typed=typed)
 
 
 def lifo_memoize(
-    maxsize: int = DEFAULT_MAXSIZE, ttl: T_TTL = 0, typed: bool = False
+    maxsize: int | None = DEFAULT_MAXSIZE, ttl: T_TTL = 0, typed: bool = False
 ) -> T_MEMOIZED_DECORATOR:
     """Like :func:`memoize` except it uses :class:`.LIFOCache`."""
     return LIFOCache(maxsize=maxsize, ttl=ttl).memoize(typed=typed)
 
 
 def lfu_memoize(
-    maxsize: int = DEFAULT_MAXSIZE, ttl: T_TTL = 0, typed: bool = False
+    maxsize: int | None = DEFAULT_MAXSIZE, ttl: T_TTL = 0, typed: bool = False
 ) -> T_MEMOIZED_DECORATOR:
     """Like :func:`memoize` except it uses :class:`.LFUCache`."""
     return LFUCache(maxsize=maxsize, ttl=ttl).memoize(typed=typed)
 
 
 def lru_memoize(
-    maxsize: int = DEFAULT_MAXSIZE, ttl: T_TTL = 0, typed: bool = False
+    maxsize: int | None = DEFAULT_MAXSIZE, ttl: T_TTL = 0, typed: bool = False
 ) -> T_MEMOIZED_DECORATOR:
     """Like :func:`memoize` except it uses :class:`.LRUCache`."""
     return LRUCache(maxsize=maxsize, ttl=ttl).memoize(typed=typed)
 
 
 def mru_memoize(
-    maxsize: int = DEFAULT_MAXSIZE, ttl: T_TTL = 0, typed: bool = False
+    maxsize: int | None = DEFAULT_MAXSIZE, ttl: T_TTL = 0, typed: bool = False
 ) -> T_MEMOIZED_DECORATOR:
     """Like :func:`memoize` except it uses :class:`.MRUCache`."""
     return MRUCache(maxsize=maxsize, ttl=ttl).memoize(typed=typed)
 
 
 def rr_memoize(
-    maxsize: int = DEFAULT_MAXSIZE, ttl: T_TTL = 0, typed: bool = False
+    maxsize: int | None = DEFAULT_MAXSIZE, ttl: T_TTL = 0, typed: bool = False
 ) -> T_MEMOIZED_DECORATOR:
     """Like :func:`memoize` except it uses :class:`.RRCache`."""
     return RRCache(maxsize=maxsize, ttl=ttl).memoize(typed=typed)

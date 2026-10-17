@@ -13,6 +13,7 @@ def cache() -> LIFOCache:
 
 def test_lifo_eviction(cache: LIFOCache):
     """Test that LIFOCache evicts entries added last first."""
+    assert cache.maxsize is not None
     keys = list(range(1, cache.maxsize + 1))
 
     for key in keys:

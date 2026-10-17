@@ -77,7 +77,7 @@ class CacheStats:
             "eviction_rate": self.eviction_rate,
         }
 
-    def copy(self):
+    def copy(self) -> "CacheStats":
         """Return copy of this object."""
         return dataclasses.replace(self)
 
@@ -165,6 +165,8 @@ class CacheStatsTracker:
 
     def info(self) -> CacheStats:
         """Return a snapshot of the cache statistics."""
+        # 2026-10-11: Read the cache before taking the statistics lock to avoid inverted lock order.
+        entry_count = len(self._cache)
         with self._lock:
-            self._stats.entry_count = len(self._cache)
+            self._stats.entry_count = entry_count
             return self._stats.copy()

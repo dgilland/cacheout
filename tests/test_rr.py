@@ -12,6 +12,7 @@ random = SystemRandom()
 @pytest.fixture
 def cache() -> RRCache:
     _cache = RRCache(maxsize=10)
+    assert _cache.maxsize is not None
     for n in range(_cache.maxsize):
         _cache.set(n, n)
     assert _cache.full()
@@ -23,6 +24,7 @@ def assert_keys_evicted_in_random_order(cache: RRCache, keys: list):
     cache_keys = keys.copy()
     evicted_keys = []
 
+    assert cache.maxsize is not None
     for n in range(cache.maxsize, cache.maxsize * 2):
         cache.set(n, n)
         assert cache.full()
