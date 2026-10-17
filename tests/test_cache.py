@@ -554,6 +554,7 @@ def test_cache_size(cache: Cache):
 
 def test_cache_full(cache: Cache):
     """Test that cache.full() returns whether the cache is full or not."""
+    assert cache.maxsize is not None
     for n in range(cache.maxsize):
         assert not cache.full()
         cache.set(n, n)
@@ -671,6 +672,7 @@ def test_cache_items(cache: Cache):
 
 def test_cache_popitem(cache: Cache):
     """Test that cache.popitem() removes the oldest entries first."""
+    assert cache.maxsize is not None
     keys = list(range(cache.maxsize))
 
     for key in keys:

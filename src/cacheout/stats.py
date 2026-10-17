@@ -77,7 +77,7 @@ class CacheStats:
             "eviction_rate": self.eviction_rate,
         }
 
-    def copy(self):
+    def copy(self) -> "CacheStats":
         """Return copy of this object."""
         return dataclasses.replace(self)
 
