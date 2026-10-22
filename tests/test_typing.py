@@ -72,7 +72,7 @@ def test_public_types(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         PUBLIC_IMPORTS
         + SUPPORTED_CALLS
         + "\ndef function(value: int) -> int:\n    return value\n\n"
-        + "\n".join(f"reveal_type({name}()(function).cache_key())" for name in MEMOIZERS)
+        + "\n".join(f"reveal_type({name}()(function).cache_key(1))" for name in MEMOIZERS)
         + "\n"
         + "\n".join(f"{name}(maxsize=None)(function)" for name in MEMOIZERS[1:]),
         encoding="utf-8",
@@ -116,5 +116,75 @@ def test_public_types(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     assert output.count('Argument "typed"') == len(MEMOIZERS), output
     assert output.count('Argument "maxsize"') == len(MEMOIZERS), output
     first_line = prefix.count("\n") + 1
+    for line in range(first_line, first_line + len(calls)):
+        assert f"consumer.py:{line}: error:" in output, output
+
+
+def test_memoized_signatures(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    source = tmp_path / "consumer.py"
+    prefix = (
+        PUBLIC_IMPORTS
+        + """
+from typing_extensions import assert_type
+
+def function(value: int, /, *, label: str) -> str:
+    return f"{label}: {value}"
+
+async def coroutine(value: int, /, *, label: str) -> str:
+    return function(value, label=label)
+"""
+    )
+    bindings = "\n".join(
+        f"sync_{i} = {name}()(function)\nasync_{i} = {name}()(coroutine)"
+        for i, name in enumerate(MEMOIZERS)
+    )
+    checks = "\n".join(
+        f"""
+assert_type(sync_{i}(1, label="item"), str)
+assert_type(sync_{i}.uncached(1, label="item"), str)
+assert_type(sync_{i}.cache_key(1, label="item"), str)
+assert_type(sync_{i}.cache, Cache)
+
+async def check_{i}() -> None:
+    assert_type(await async_{i}(1, label="item"), str)
+    assert_type(await async_{i}.uncached(1, label="item"), str)
+    assert_type(async_{i}.cache_key(1, label="item"), str)
+"""
+        for i in range(len(MEMOIZERS))
+    )
+    source.write_text(prefix + bindings + checks, encoding="utf-8")
+    config = tmp_path / "mypy.ini"
+    config.write_text("[mypy]\nstrict = True\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("MYPYPATH", raising=False)
+    arguments = [
+        "--config-file",
+        str(config),
+        "--no-incremental",
+        "--follow-untyped-imports",
+        "--cache-dir",
+        str(tmp_path / "cache"),
+        str(source),
+    ]
+    output, errors, status = api.run(arguments)
+    assert status == 0, output + errors
+
+    calls = [
+        call
+        for i in range(len(MEMOIZERS))
+        for call in (
+            f'sync_{i}("wrong", label="item")',
+            f"sync_{i}(1)",
+            f'sync_{i}(value=1, label="item")',
+            f'sync_{i}.uncached("wrong", label="item")',
+            f'sync_{i}.cache_key("wrong", label="item")',
+        )
+    ]
+    source.write_text(prefix + bindings + "\n" + "\n".join(calls), encoding="utf-8")
+    output, errors, status = api.run(arguments)
+    assert status == 1, output + errors
+    assert errors == ""
+    assert output.count("error:") == len(calls), output
+    first_line = (prefix + bindings + "\n").count("\n") + 1
     for line in range(first_line, first_line + len(calls)):
         assert f"consumer.py:{line}: error:" in output, output

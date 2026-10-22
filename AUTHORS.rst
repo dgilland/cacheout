@@ -18,3 +18,4 @@ Contributors
 - Ryan Duguid, `ryanduguid@github <https://github.com/ryanduguid>`_
 - fhgffy, `fhgffy@github <https://github.com/fhgffy>`_
 - Jared Ji, `xingzhao-ji@github <https://github.com/xingzhao-ji>`_
+- Wentao Tong, `tongwentao@github <https://github.com/tongwentao>`_
