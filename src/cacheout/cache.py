@@ -16,10 +16,8 @@ import typing as t
 from .stats import CacheStatsTracker
 
 
-F = t.TypeVar("F", bound=t.Callable[..., t.Any])
-
-#: Memoized decorator type.
-T_MEMOIZED_DECORATOR = t.Callable[[F], "MemoizedFunction"]
+P = t.ParamSpec("P")
+R = t.TypeVar("R")
 
 #: Possible types for TTL (time to live) value.
 T_TTL = t.Union[int, float]
@@ -47,13 +45,21 @@ T_ON_DELETE_CALLBACK = t.Optional[t.Callable[[t.Hashable, t.Any, "RemovalCause"]
 UNSET = object()
 
 
-class MemoizedFunction(t.Protocol):
+class MemoizedFunction(t.Protocol[P, R]):
     cache: "Cache"
-    cache_key: t.Callable[..., str]
-    uncached: t.Callable[..., t.Any]
+    cache_key: t.Callable[P, str]
+    uncached: t.Callable[P, R]
     __name__: str
 
-    def __call__(self, *args: t.Any, **kwargs: t.Any) -> t.Any: ...
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
+
+
+class MemoizedDecorator(t.Protocol):
+    def __call__(self, func: t.Callable[P, R]) -> MemoizedFunction[P, R]: ...
+
+
+#: Memoized decorator type.
+T_MEMOIZED_DECORATOR = MemoizedDecorator
 
 
 class RemovalCause(Enum):
@@ -665,6 +671,9 @@ class Cache:
         cache key for the provided function arguments for use in other operations of the
         ``<function>.cache`` object using the function accessible at ``<function>.cache_key``
 
+        Type annotations preserve the wrapped function's parameters and return type, including
+        for ``uncached``. The ``cache_key`` helper accepts the same parameters and returns a string.
+
         Keyword Args:
             ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`. Time units
                 are determined by :attr:`timer`.
@@ -674,7 +683,7 @@ class Cache:
         """
         marker = (object(),)
 
-        def decorator(func: F) -> MemoizedFunction:
+        def decorator(func: t.Callable[P, R]) -> MemoizedFunction[P, R]:
             prefix = f"{func.__module__}.{func.__name__}:"
             argspec = inspect.getfullargspec(func)
 
@@ -706,7 +715,7 @@ class Cache:
 
                     return value
 
-            memo = t.cast(MemoizedFunction, decorated)
+            memo = t.cast(MemoizedFunction[P, R], decorated)
             memo.cache = self
             memo.cache_key = cache_key
             memo.uncached = func
