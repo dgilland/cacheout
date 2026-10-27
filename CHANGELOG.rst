@@ -2,6 +2,13 @@ Changelog
 =========
 
 
+Unreleased
+----------
+
+- Preserve parameter and return types of memoized functions and their ``uncached`` and
+  ``cache_key`` helpers during type checking.
+
+
 v0.17.0 (2026-10-03)
 --------------------
 
