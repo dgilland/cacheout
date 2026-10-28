@@ -5,6 +5,8 @@ Changelog
 Unreleased
 ----------
 
+- Keep memoized calls with omitted positional defaults separate from different positional calls.
+
 - Preserve parameter and return types of memoized functions and their ``uncached`` and
   ``cache_key`` helpers during type checking.
 
