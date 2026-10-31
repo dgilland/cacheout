@@ -456,26 +456,21 @@ class Cache:
         Delete cache key and return number of entries deleted (``1`` or ``0``).
 
         If cause is ``None``, on-delete callback won't be executed.
+        Removal bookkeeping is complete before the callback runs, even if
+        the callback raises or inserts a replacement for the removed key.
         """
-        count = 0
-
         try:
-            value = self._cache[key]
-            del self._cache[key]
-            if cause and self.on_delete:
-                self.on_delete(key, value, cause)
-            count = 1
-            if cause == RemovalCause.FULL:
-                self.stats.inc_eviction_count()
+            value = self._cache.pop(key)
         except KeyError:
-            pass
+            self._expire_times.pop(key, None)
+            return 0
 
-        try:
-            del self._expire_times[key]
-        except KeyError:
-            pass
-
-        return count
+        self._expire_times.pop(key, None)
+        if cause == RemovalCause.FULL:
+            self.stats.inc_eviction_count()
+        if cause and self.on_delete:
+            self.on_delete(key, value, cause)
+        return 1
 
     def delete_many(self, iteratee: T_FILTER) -> int:
         """
