@@ -684,7 +684,8 @@ class Cache:
         marker = (object(),)
 
         def decorator(func: t.Callable[P, R]) -> MemoizedFunction[P, R]:
-            prefix = f"{func.__module__}.{func.__name__}:"
+            name = getattr(func, "__name__", type(func).__name__)
+            prefix = f"{func.__module__}.{name}:"
             argspec = inspect.getfullargspec(func)
 
             def cache_key(*args, **kwargs):
