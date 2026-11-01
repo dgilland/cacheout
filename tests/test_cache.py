@@ -1,4 +1,5 @@
 import asyncio
+from functools import partial
 import re
 import typing as t
 
@@ -821,6 +822,39 @@ def test_cache_memoize_argument_boundaries(cache: Cache):
     assert join_numbers(12, 3) == (12, 3)
     assert join_numbers(123) == (123,)
     assert join_numbers.cache_key(1, 23) != join_numbers.cache_key(12, 3)
+
+
+@parametrize("typed", [False, True])
+def test_memoize_partial_function(cache: Cache, typed: bool):
+    calls = []
+
+    def add(left, right):
+        calls.append((left, right))
+        return left + right
+
+    target = partial(add, 10)
+    memoized = cache.memoize(typed=typed)(target)
+    assert memoized(2) == 12
+    assert memoized(right=2) == 12
+    assert calls == [(10, 2)]
+    assert memoized.uncached is target
+
+
+@pytest.mark.asyncio
+@parametrize("typed", [False, True])
+async def test_memoize_async_partial_function(cache: Cache, typed: bool):
+    calls = []
+
+    async def add(left, right):
+        calls.append((left, right))
+        return left + right
+
+    target = partial(add, 10)
+    memoized = cache.memoize(typed=typed)(target)
+    assert await memoized(2) == 12
+    assert await memoized(right=2) == 12
+    assert calls == [(10, 2)]
+    assert memoized.uncached is target
 
 
 @pytest.mark.parametrize("typed", [False, True])
