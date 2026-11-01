@@ -20,3 +20,4 @@ Contributors
 - Jared Ji, `xingzhao-ji@github <https://github.com/xingzhao-ji>`_
 - Wentao Tong, `tongwentao@github <https://github.com/tongwentao>`_
 - AlexXuz, `AlexXuz@github <https://github.com/AlexXuz>`_
+- Shahadat Islam Koyel, `ShahadatTest@github <https://github.com/ShahadatTest>`_
