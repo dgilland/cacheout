@@ -60,14 +60,8 @@ class LFUCache(Cache):
     add.__doc__ = Cache.add.__doc__
 
     def _delete(self, key: t.Hashable, cause: t.Optional[RemovalCause] = None) -> int:
-        count = super()._delete(key, cause)
-
-        try:
-            del self._access_counts[key]
-        except KeyError:  # pragma: no cover
-            pass
-
-        return count
+        self._access_counts.pop(key, None)
+        return super()._delete(key, cause)
 
     def _clear(self) -> None:
         super()._clear()
