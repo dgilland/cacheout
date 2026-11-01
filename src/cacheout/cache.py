@@ -685,10 +685,15 @@ class Cache:
 
         def decorator(func: t.Callable[P, R]) -> MemoizedFunction[P, R]:
             prefix = f"{func.__module__}.{func.__name__}:"
-            argspec = inspect.getfullargspec(func)
+            parameters = tuple(
+                parameter
+                for parameter in inspect.signature(func, follow_wrapped=False).parameters.values()
+                if parameter.kind
+                in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+            )
 
             def cache_key(*args, **kwargs):
-                return _make_memoize_key(func, args, kwargs, marker, typed, argspec, prefix)
+                return _make_memoize_key(func, args, kwargs, marker, typed, parameters, prefix)
 
             if inspect.iscoroutinefunction(func):
 
@@ -731,7 +736,7 @@ def _make_memoize_key(  # noqa: PLR0917
     kwargs: dict[str, t.Any],
     marker: tuple,
     typed: bool,
-    argspec: inspect.FullArgSpec,
+    parameters: t.Tuple[inspect.Parameter, ...],
     prefix: str,
 ) -> str:
     kwargs = kwargs.copy()
@@ -741,9 +746,11 @@ def _make_memoize_key(  # noqa: PLR0917
     # args. This is so functions like foo(a, b, c) called with foo(1, b=2, c=3) and foo(1, 2, 3) and
     # foo(1, 2, c=3) will all have the same cache key.
     if kwargs:
-        for i, arg in enumerate(argspec.args):
-            if arg in kwargs:
-                args = args[:i] + (kwargs.pop(arg),) + args[i:]
+        for parameter in parameters[len(args) :]:
+            if parameter.kind == inspect.Parameter.POSITIONAL_ONLY or parameter.name not in kwargs:
+                # Keep later arguments as keywords when an earlier default was omitted.
+                break
+            args += (kwargs.pop(parameter.name),)
 
     if args:
         key_args += args
