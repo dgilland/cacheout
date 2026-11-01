@@ -821,3 +821,64 @@ def test_cache_memoize_argument_boundaries(cache: Cache):
     assert join_numbers(12, 3) == (12, 3)
     assert join_numbers(123) == (123,)
     assert join_numbers.cache_key(1, 23) != join_numbers.cache_key(12, 3)
+
+
+@pytest.mark.parametrize("typed", [False, True])
+def test_cache_memoize_omitted_positional_defaults(cache: Cache, typed: bool):
+    @cache.memoize(typed=typed)
+    def func(a=1, b=2, c=3):
+        return a, b, c
+
+    assert func(b=4) == (1, 4, 3)
+    assert func(4) == (4, 2, 3)
+    assert func(c=4) == (1, 2, 4)
+    assert func(1, c=4) == (1, 2, 4)
+    assert func(1, 4) == (1, 4, 3)
+    assert func(b=4, c=5) == (1, 4, 5)
+    assert func(4, 5) == (4, 5, 3)
+    assert func.cache_key(b=4) != func.cache_key(4)
+    assert func.cache_key(c=4) != func.cache_key(4)
+    assert func.cache_key(1, c=4) != func.cache_key(1, 4)
+    assert func.cache_key(a=1, b=4, c=5) == func.cache_key(1, 4, 5)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("typed", [False, True])
+async def test_cache_memoize_async_omitted_positional_defaults(cache: Cache, typed: bool):
+    @cache.memoize(typed=typed)
+    async def func(a=1, b=2):
+        return a, b
+
+    assert await func(b=3) == (1, 3)
+    assert await func(3) == (3, 2)
+    assert func.cache_key(b=3) != func.cache_key(3)
+
+
+@parametrize("callable_type", ["method", "object"])
+def test_cache_memoize_bound_arg_normalization(cache: Cache, callable_type: str):
+    class Callable:
+        __name__ = "Callable"
+
+        def __call__(self, a=1, b=2):
+            return a, b
+
+    instance = Callable()
+    target = instance.__call__ if callable_type == "method" else instance
+    func = cache.memoize()(target)
+
+    assert func(1, 2) == (1, 2)
+    assert func.cache_key(1, 2) == func.cache_key(a=1, b=2)
+    assert func.cache_key(1, 2) == func.cache_key(1, b=2)
+    assert func(b=3) == (1, 3)
+    assert func(3) == (3, 2)
+    assert func.cache_key(b=3) != func.cache_key(3)
+
+
+def test_cache_memoize_positional_only_keywords(cache: Cache):
+    @cache.memoize()
+    def func(a=1, /, **kwargs):
+        return a, kwargs
+
+    assert func(a=3) == (1, {"a": 3})
+    assert func(3) == (3, {})
+    assert func.cache_key(a=3) != func.cache_key(3)
