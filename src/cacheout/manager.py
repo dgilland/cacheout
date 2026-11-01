@@ -98,9 +98,10 @@ class CacheManager:
         """
         try:
             cache = self[name]
-            cache.configure(**options)
         except KeyError:
             self.register(name, self._create_cache(**options))
+        else:
+            cache.configure(**options)
 
     def _create_cache(
         self, cache_class: t.Optional[t.Callable[..., Cache]] = None, **options: t.Any

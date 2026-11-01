@@ -173,3 +173,29 @@ def test_cache_manager_repr():
     cacheman.setup(settings)
 
     assert repr(cacheman) == "CacheManager(['a', 'b', 'c'])"
+
+
+def test_cache_manager_propagates_existing_cache_configuration_key_error():
+    class ProfileCache(Cache):
+        def configure(self, **options):
+            if "profile" in options:
+                raise expected
+            super().configure(**options)
+
+    expected = KeyError("missing profile")
+    constructions = []
+
+    def factory(**options):
+        constructions.append(options)
+        return ProfileCache()
+
+    manager = CacheManager(cache_class=factory)
+    manager.configure("existing")
+    original = manager["existing"]
+    original.set("saved", "value")
+    with pytest.raises(KeyError) as caught:
+        manager.configure("existing", profile="missing")
+    assert caught.value is expected
+    assert len(constructions) == 1
+    assert manager["existing"] is original
+    assert manager["existing"].get("saved") == "value"
