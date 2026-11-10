@@ -526,6 +526,39 @@ class Cache:
                 count += self._delete(key, RemovalCause.EXPIRED)
         return count
 
+    def expire(self, key: t.Hashable, ttl: T_TTL) -> bool:
+        """
+        Update the TTL of an existing, unexpired cache entry.
+
+        The value, eviction order, access counts, and hit/miss statistics are unchanged. This does
+        not call :attr:`on_get` or :attr:`on_set`. An already expired entry is removed, calling
+        :attr:`on_delete` with :attr:`RemovalCause.EXPIRED`, and is not revived. Exceptions from
+        the timer or deadline calculation leave the entry and its expiration unchanged.
+
+        Args:
+            key: Cache key to update.
+            ttl: New TTL measured from the current :attr:`timer` value. As with :meth:`set`, zero
+                or negative values disable expiration. This does not change the default :attr:`ttl`.
+
+        Returns:
+            ``True`` if the entry was updated, or ``False`` if it was missing or had expired.
+        """
+        with self._lock:
+            if key not in self._cache:
+                return False
+
+            now = self.timer()
+            if self.expired(key, expires_on=now):
+                self._delete(key, RemovalCause.EXPIRED)
+                return False
+
+            expire_time = now + ttl if ttl and ttl > 0 else None
+            if expire_time is None:
+                self._expire_times.pop(key, None)
+            else:
+                self._expire_times[key] = expire_time
+            return True
+
     def expired(self, key: t.Hashable, expires_on: t.Optional[T_TTL] = None) -> bool:
         """
         Return whether cache key is expired or not.

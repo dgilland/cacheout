@@ -133,6 +133,20 @@ Set the TTL (time-to-live) expiration per entry (default TTL units are in second
     assert cache.get(3) is None
 
 
+Update an existing entry's TTL without fetching or replacing its value:
+
+.. code-block:: python
+
+    cache.set('session', {'data': {}})
+    assert cache.expire('session', 60) is True  # expire 60 seconds from now
+    assert cache.expire('session', 0) is True   # disable expiration
+    assert cache.expire('missing', 60) is False
+
+``expire()`` preserves eviction order, access counts, and hit/miss statistics. It returns ``False``
+for an expired entry, removes it, and invokes ``on_delete`` with ``RemovalCause.EXPIRED``. As with
+``set()``, a zero or negative TTL disables expiration; positive TTLs use the units of ``timer``.
+
+
 Memoize a function where cache keys are generated from the called function parameters:
 
 .. code-block:: python

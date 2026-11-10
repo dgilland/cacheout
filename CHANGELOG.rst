@@ -5,6 +5,8 @@ Changelog
 Unreleased
 ----------
 
+- Add ``Cache.expire(key, ttl)`` to update an existing entry's expiration without replacing its
+  value or changing its eviction order. Missing or expired entries are not revived.
 - Keep memoized calls with omitted positional defaults separate from different positional calls.
 - Preserve parameter and return types of memoized functions and their ``uncached`` and
   ``cache_key`` helpers during type checking.
