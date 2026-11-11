@@ -6,7 +6,6 @@ Unreleased
 ----------
 
 - Preserve entries refreshed by deletion callbacks during an expiration sweep.
-
 - Add ``Cache.expire(key, ttl)`` to update an existing entry's expiration without replacing its
   value or changing its eviction order. Missing or expired entries are not revived.
 - Keep memoized calls with omitted positional defaults separate from different positional calls.
