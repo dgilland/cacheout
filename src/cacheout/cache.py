@@ -519,10 +519,11 @@ class Cache:
         # a newly computed timestamp on each iteration.
         count = 0
         expires_on = self.timer()
-        expire_times = self._expire_times.copy()
+        keys = list(self._expire_times)
 
-        for key, expiration in expire_times.items():
-            if expiration <= expires_on:
+        for key in keys:
+            # An earlier deletion callback may have refreshed this entry.
+            if self.expired(key, expires_on=expires_on):
                 count += self._delete(key, RemovalCause.EXPIRED)
         return count
 
