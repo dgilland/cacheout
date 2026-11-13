@@ -48,14 +48,18 @@ class LFUCache(Cache):
     def set(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
         with self._lock:
             super().set(key, value, ttl=ttl)
-            self._touch(key)
+            # on_set may have removed the entry reentrantly.
+            if key in self._cache:
+                self._touch(key)
 
     set.__doc__ = Cache.set.__doc__
 
     def add(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
         with self._lock:
             super().add(key, value, ttl=ttl)
-            self._touch(key)
+            # on_set may have removed the entry reentrantly.
+            if key in self._cache:
+                self._touch(key)
 
     add.__doc__ = Cache.add.__doc__
 

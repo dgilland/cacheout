@@ -5,6 +5,7 @@ Changelog
 Unreleased
 ----------
 
+- Avoid stale LFU eviction counters when an on-set callback removes the inserted entry.
 - Preserve entries refreshed by deletion callbacks during an expiration sweep.
 - Add ``Cache.expire(key, ttl)`` to update an existing entry's expiration without replacing its
   value or changing its eviction order. Missing or expired entries are not revived.
