@@ -282,7 +282,8 @@ class Cache:
     def get(self, key: t.Hashable, default: t.Any = None) -> t.Any:
         """
         Return the cache value for `key` or `default` or ``missing(key)`` if it doesn't exist or has
-        expired.
+        expired. Exceptions from the timer or expiration callback propagate without running the
+        missing-value default or incrementing hit/miss statistics for the interrupted read.
 
         Args:
             key: Cache key.
@@ -301,13 +302,16 @@ class Cache:
         existed = True
         try:
             value = self._cache[key]
-
-            if self.expired(key):
-                self._delete(key, RemovalCause.EXPIRED)
-                raise KeyError
-            self.stats.inc_hit_count()
         except KeyError:
             existed = False
+        else:
+            if self.expired(key):
+                self._delete(key, RemovalCause.EXPIRED)
+                existed = False
+            else:
+                self.stats.inc_hit_count()
+
+        if not existed:
             self.stats.inc_miss_count()
             if default is None:
                 default = self.default
