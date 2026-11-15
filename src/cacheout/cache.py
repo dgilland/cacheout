@@ -631,6 +631,8 @@ class Cache:
             while self.full():
                 try:
                     self._popitem(RemovalCause.FULL)
+                except StopIteration:  # pragma: no cover
+                    break
                 except KeyError:  # pragma: no cover
                     pass
                 else:
@@ -655,9 +657,18 @@ class Cache:
         try:
             key = next(self)
         except StopIteration as exc:
-            raise KeyError("popitem(): cache is empty") from exc
+            raise StopIteration("popitem(): cache is empty") from exc
 
-        value = self._cache[key]
+        try:
+            value = self._cache[key]
+        except KeyError as exc:
+            from .lfu import LFUCache  # noqa: PLC0415
+
+            if isinstance(self, LFUCache):
+                self._access_counts.pop(key, None)
+                raise KeyError(f"ghost LFU access counter for missing key: {key}") from exc
+            raise  # pragma: no cover
+
         self._delete(key, cause)
 
         return key, value

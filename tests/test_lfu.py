@@ -247,3 +247,12 @@ def test_lfu_add_on_set_replacement_remains_counted():
     assert cache._access_counts["key"] == -2
     cache.set("next", "next")
     assert dict(cache.items()) == {"next": "next"}
+
+
+def test_lfu_popitem_removes_ghost_counter():
+    cache = LFUCache()
+    cache.set("live", 1)
+    cache._access_counts["ghost"] = 0
+
+    with pytest.raises(KeyError, match="ghost LFU access counter for missing key: ghost"):
+        cache.popitem()

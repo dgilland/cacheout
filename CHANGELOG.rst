@@ -11,7 +11,7 @@ Unreleased
 - Keep memoized calls with omitted positional defaults separate from different positional calls.
 - Preserve parameter and return types of memoized functions and their ``uncached`` and
   ``cache_key`` helpers during type checking.
-- Avoid ghost counters in LFU when an on-set callback removes the same entry.
+- Avoid ghost counters in LFU when an on_set callback removes the same entry.
 
 
 v0.17.0 (2026-10-03)
