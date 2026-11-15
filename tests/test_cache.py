@@ -685,7 +685,7 @@ def test_cache_popitem(cache: Cache):
         assert v == str(key)
         assert len(cache) == (cache.maxsize - (i + 1))
 
-    with pytest.raises(KeyError):
+    with pytest.raises(StopIteration):
         cache.popitem()
 
 

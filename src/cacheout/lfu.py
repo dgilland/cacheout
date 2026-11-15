@@ -34,7 +34,8 @@ class LFUCache(Cache):
     def _touch(self, key: t.Hashable) -> None:
         # Decrement access counts so we can use Counter.most_common() to return the least accessed
         # keys first (i.e. keys with a higher count).
-        self._access_counts[key] -= 1
+        if key in self._cache:
+            self._access_counts[key] -= 1
 
     def get(self, key: t.Hashable, default: t.Any = None) -> t.Any:
         with self._lock:
