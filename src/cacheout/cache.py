@@ -6,7 +6,6 @@ from decimal import Decimal
 from enum import Enum, auto
 import fnmatch
 from functools import wraps
-import hashlib
 import inspect
 import re
 from threading import RLock
@@ -47,8 +46,9 @@ UNSET = object()
 
 class MemoizedFunction(t.Protocol[P, R]):
     cache: "Cache"
-    cache_key: t.Callable[P, str]
+    cache_key: t.Callable[P, t.Hashable]
     uncached: t.Callable[P, R]
+    invalidate: t.Callable[[], int]
     __name__: str
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
@@ -717,7 +717,11 @@ class Cache:
         ``<function>.cache`` object using the function accessible at ``<function>.cache_key``
 
         Type annotations preserve the wrapped function's parameters and return type, including
-        for ``uncached``. The ``cache_key`` helper accepts the same parameters and returns a string.
+        for ``uncached``. The ``cache_key`` helper accepts the same parameters and returns the
+        hashable cache key. Keys are tuples compared by equality, so distinct arguments can't
+        collide. Unhashable arguments are frozen structurally (lists, tuples, dicts, sets) or
+        matched by identity as a last resort. ``<function>.invalidate()`` deletes every cache entry
+        for the function and returns the number of entries removed.
 
         Keyword Args:
             ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`. Time units
@@ -726,20 +730,21 @@ class Cache:
                 example, ``<function>(1)`` and ``<function>(1.0)`` would be treated differently.
                 Defaults to ``False``.
         """
-        marker = (object(),)
+        marker = object()
 
         def decorator(func: t.Callable[P, R]) -> MemoizedFunction[P, R]:
-            name = getattr(func, "__name__", type(func).__name__)
-            prefix = f"{func.__module__}.{name}:"
-            parameters = tuple(
-                parameter
-                for parameter in inspect.signature(func, follow_wrapped=False).parameters.values()
-                if parameter.kind
-                in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
-            )
+            signature = inspect.signature(func, follow_wrapped=False)
+            params = signature.parameters.values()
+            posonly = tuple(p.name for p in params if p.kind is inspect.Parameter.POSITIONAL_ONLY)
+            varkw = next((p.name for p in params if p.kind is inspect.Parameter.VAR_KEYWORD), None)
 
             def cache_key(*args, **kwargs):
-                return _make_memoize_key(func, args, kwargs, marker, typed, parameters, prefix)
+                return _make_memoize_key(func, signature, posonly, varkw, args, kwargs, typed)
+
+            def invalidate() -> int:
+                return self.delete_many(
+                    lambda key: isinstance(key, tuple) and len(key) == 2 and key[0] is func
+                )
 
             if inspect.iscoroutinefunction(func):
 
@@ -749,7 +754,7 @@ class Cache:
                     value = self.get(key, default=marker)
 
                     if value is marker:
-                        value = await func(*args, **kwargs)
+                        value = await func(*args, **kwargs)  # type: ignore
                         self.set(key, value, ttl=ttl)
 
                     return value
@@ -761,7 +766,7 @@ class Cache:
                     value = self.get(key, default=marker)
 
                     if value is marker:
-                        value = func(*args, **kwargs)
+                        value = func(*args, **kwargs)  # type: ignore
                         self.set(key, value, ttl=ttl)
 
                     return value
@@ -770,59 +775,85 @@ class Cache:
             memo.cache = self
             memo.cache_key = cache_key
             memo.uncached = func
+            memo.invalidate = invalidate
 
             return memo
 
         return decorator
 
 
+# Unique tags so frozen containers can't equal user data (e.g. [1] vs (1,) vs a literal tuple).
+_LIST, _TUPLE, _DICT, _SET = (object() for _ in range(4))
+
+
+class _Identity:
+    """Key wrapper for unhashable objects: equal only to itself, by identity."""
+
+    __slots__ = ("obj",)
+
+    def __init__(self, obj: t.Any) -> None:
+        self.obj = obj  # strong ref keeps obj alive so its id() can't be reused
+
+    def __eq__(self, other: t.Any) -> bool:
+        return isinstance(other, _Identity) and self.obj is other.obj
+
+    def __hash__(self) -> int:
+        return id(self.obj)
+
+
 def _make_memoize_key(  # noqa: PLR0917
     func: t.Callable[..., t.Any],
+    signature: inspect.Signature,
+    posonly: t.Tuple[str, ...],
+    varkw: t.Optional[str],
     args: tuple,
     kwargs: dict[str, t.Any],
-    marker: tuple,
     typed: bool,
-    parameters: t.Tuple[inspect.Parameter, ...],
-    prefix: str,
-) -> str:
-    kwargs = kwargs.copy()
-    key_args: tuple = (func,)
+) -> t.Hashable:
+    # bind() rejects a keyword named like an omitted positional-only parameter even when **kwargs
+    # accepts it (e.g. f(a=3) for f(a=1, /, **kw)), so set those aside and merge them back below.
+    extra: dict[str, t.Any] = {}
+    if varkw and posonly:
+        kwargs = kwargs.copy()
+        extra = {name: kwargs.pop(name) for name in posonly[len(args) :] if name in kwargs}
 
-    # Normalize args by moving positional arguments passed in as keyword arguments from kwargs into
-    # args. This is so functions like foo(a, b, c) called with foo(1, b=2, c=3) and foo(1, 2, 3) and
-    # foo(1, 2, c=3) will all have the same cache key.
-    if kwargs:
-        for parameter in parameters[len(args) :]:
-            if parameter.kind == inspect.Parameter.POSITIONAL_ONLY or parameter.name not in kwargs:
-                # Keep later arguments as keywords when an earlier default was omitted.
-                break
-            args += (kwargs.pop(parameter.name),)
+    # Binding normalizes foo(1, 2), foo(1, b=2) and omitted defaults to the same key.
+    bound = signature.bind(*args, **kwargs)
+    bound.apply_defaults()
 
-    if args:
-        key_args += args
+    if extra and varkw:
+        bound.arguments[varkw] = {**bound.arguments[varkw], **extra}
 
-    if kwargs:
-        # Separate args and kwargs with marker to avoid ambiguous cases where args provided might
-        # look like some other args+kwargs combo.
-        key_args += marker
-        key_args += tuple(sorted(kwargs.items()))
-
-    if typed and args:
-        key_args += tuple(type(arg) for arg in args)
-
-    if typed and kwargs:
-        key_args += tuple(type(val) for _, val in sorted(kwargs.items()))
-
-    # Preserve the boundaries between hashed arguments before hashing the whole key.
-    raw_key = repr(tuple(_hash_value(key_arg) for key_arg in key_args))
-
-    # Combine prefix with md5 hash of raw key so that keys are normalized in length.
-    return prefix + hashlib.md5(raw_key.encode()).hexdigest()
+    # Argument order is fixed by the signature, so values alone identify the call.
+    return func, tuple(_freeze(value, typed) for value in bound.arguments.values())
 
 
-def _hash_value(value: t.Any) -> t.Union[int, str]:
-    # Prefer to hash value based on Python's hash() function but fallback to repr() if unhashable.
+def _is_hashable(value: t.Any) -> bool:
     try:
-        return hash(value)
+        hash(value)
     except TypeError:
-        return repr(value)
+        return False
+    return True
+
+
+def _freeze(value: t.Any, typed: bool) -> t.Hashable:
+    """Return an equality-preserving hashable stand-in for value (copies mutable containers)."""
+    hashable = _is_hashable(value)
+
+    if isinstance(value, tuple) and (typed or not hashable):
+        frozen: t.Hashable = (_TUPLE, tuple(_freeze(v, typed) for v in value))
+    elif hashable:
+        frozen = value
+    elif isinstance(value, list):
+        frozen = (_LIST, tuple(_freeze(v, typed) for v in value))
+    elif isinstance(value, dict):
+        frozen = (
+            _DICT,
+            frozenset((_freeze(k, typed), _freeze(v, typed)) for k, v in value.items()),
+        )
+    elif isinstance(value, set):
+        frozen = (_SET, frozenset(_freeze(v, typed) for v in value))
+    else:
+        frozen = _Identity(value)
+
+    return (type(value), frozen) if typed else frozen

@@ -6,15 +6,39 @@ Unreleased
 ----------
 
 - Avoid stale LFU eviction counters when an on-set callback removes the inserted entry.
-- Propagate timer and expiration-callback errors from reads instead of treating ``KeyError`` as
-  a cache miss, running defaults, or overwriting a callback replacement.
+- Avoid ghost counters in LFU when an on_set callback removes the same entry.
+- Propagate timer and expiration-callback errors from reads instead of treating ``KeyError`` as a
+  cache miss, running defaults, or overwriting a callback replacement.
 - Preserve entries refreshed by deletion callbacks during an expiration sweep.
 - Add ``Cache.expire(key, ttl)`` to update an existing entry's expiration without replacing its
   value or changing its eviction order. Missing or expired entries are not revived.
 - Keep memoized calls with omitted positional defaults separate from different positional calls.
-- Preserve parameter and return types of memoized functions and their ``uncached`` and
-  ``cache_key`` helpers during type checking.
-- Avoid ghost counters in LFU when an on_set callback removes the same entry.
+- Preserve parameter and return types of memoized functions and their ``uncached`` and ``cache_key``
+  helpers during type checking.
+- Rework ``Cache.memoize`` cache keys so distinct arguments can't share a cached result.
+
+  - Fix key collisions. Keys were built from ``hash()`` and ``repr()`` digests, so different
+    arguments could collide (for example ``-1`` and ``-2``, since ``hash(-1) == hash(-2)`` in
+    CPython). Keys are now tuples compared by equality.
+  - Fix argument normalization by binding arguments to the function's signature. Omitted defaults
+    and explicit values share a key (``f(1)``, ``f(1, 2)`` and ``f(1, b=2)`` when ``b`` defaults to
+    ``2``), and the order of extra keyword arguments no longer matters.
+  - Fix unhashable arguments (lists, dicts, sets, and tuples containing them) to be keyed by value
+    instead of ``repr()``. Container types stay distinct (``[1]`` vs ``(1,)``), and mutating an
+    argument after the call doesn't alter its cached key.
+  - Fix ``typed=True`` so argument types are also factored in for items nested inside containers,
+    such as ``(1,)`` vs ``(1.0,)``.
+  - Change other unhashable objects to match by identity instead of ``repr()``. Equal but distinct
+    instances no longer share a cache entry.
+  - Add ``<function>.invalidate()`` to memoized functions. It deletes every cache entry for that
+    function and returns the number removed.
+  - **Breaking:** keys are now tuples of the form ``(func, args)`` instead of
+    ``"<module>.<name>:<md5>"`` strings, and ``<function>.cache_key()`` returns a hashable value
+    instead of ``str``. Code that filters memoized entries by string pattern, for example
+    ``cache.delete_many("module.func:*")``, must switch to ``<function>.invalidate()`` or a callable
+    filter. (**breaking change**)
+  - **NOTE:** keys now hold references to their arguments (previously only an md5 digest was kept),
+    so cached calls keep their arguments alive until the entry expires or is evicted.
 
 
 v0.17.0 (2026-10-03)

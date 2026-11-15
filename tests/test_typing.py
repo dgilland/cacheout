@@ -93,7 +93,7 @@ def test_public_types(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     ]
     output, errors, status = api.run(arguments)
     assert status == 0, output + errors
-    assert output.count('note: Revealed type is "str"') == len(MEMOIZERS)
+    assert output.count('note: Revealed type is "typing.Hashable"') == len(MEMOIZERS)
 
     prefix = (
         PUBLIC_IMPORTS
@@ -125,6 +125,7 @@ def test_memoized_signatures(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     prefix = (
         PUBLIC_IMPORTS
         + """
+from typing import Hashable
 from typing_extensions import assert_type
 
 def function(value: int, /, *, label: str) -> str:
@@ -142,13 +143,13 @@ async def coroutine(value: int, /, *, label: str) -> str:
         f"""
 assert_type(sync_{i}(1, label="item"), str)
 assert_type(sync_{i}.uncached(1, label="item"), str)
-assert_type(sync_{i}.cache_key(1, label="item"), str)
+assert_type(sync_{i}.cache_key(1, label="item"), Hashable)
 assert_type(sync_{i}.cache, Cache)
 
 async def check_{i}() -> None:
     assert_type(await async_{i}(1, label="item"), str)
     assert_type(await async_{i}.uncached(1, label="item"), str)
-    assert_type(async_{i}.cache_key(1, label="item"), str)
+    assert_type(async_{i}.cache_key(1, label="item"), Hashable)
 """
         for i in range(len(MEMOIZERS))
     )

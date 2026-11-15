@@ -1,8 +1,10 @@
 import asyncio
 from decimal import Decimal, Overflow, localcontext
 from functools import partial
+import gc
 import re
 import typing as t
+import weakref
 
 import pytest
 
@@ -416,13 +418,9 @@ def test_cache_memoize_typed(cache: Cache):
 
     assert len(cache) == 3
 
-    untyped_keys = [
-        key for key in cache.keys() if key.startswith(f"{untyped.__module__}.{untyped.__name__}")
-    ]
-
-    typed_keys = [
-        key for key in cache.keys() if key.startswith(f"{typed.__module__}.{typed.__name__}")
-    ]
+    # Memoize keys are (func, frozen_args) tuples, so match on the function.
+    untyped_keys = [key for key in cache.keys() if key[0] is untyped.uncached]
+    typed_keys = [key for key in cache.keys() if key[0] is typed.uncached]
 
     assert len(untyped_keys) == 1
     assert len(typed_keys) == 2
@@ -930,6 +928,271 @@ def test_cache_memoize_positional_only_keywords(cache: Cache):
     assert func(a=3) == (1, {"a": 3})
     assert func(3) == (3, {})
     assert func.cache_key(a=3) != func.cache_key(3)
+
+
+def test_cache_memoize_hash_collisions(cache: Cache):
+    """Test that cache.memoize() doesn't share results between arguments with the same hash()."""
+    assert hash(-1) == hash(-2)
+
+    @cache.memoize()
+    def func(a):
+        return a
+
+    assert func(-1) == -1
+    assert func(-2) == -2
+    assert func.cache_key(-1) != func.cache_key(-2)
+    assert len(cache) == 2
+
+
+def test_cache_memoize_custom_hash_collisions(cache: Cache):
+    """Test that cache.memoize() distinguishes unequal arguments even if their hashes collide."""
+
+    class Colliding:
+        def __init__(self, value: int):
+            self.value = value
+
+        def __eq__(self, other: t.Any) -> bool:
+            return isinstance(other, Colliding) and self.value == other.value
+
+        def __hash__(self) -> int:
+            return 1
+
+    calls = []
+
+    @cache.memoize()
+    def func(a):
+        calls.append(a.value)
+        return a.value
+
+    assert func(Colliding(1)) == 1
+    assert func(Colliding(2)) == 2
+    assert func(Colliding(1)) == 1
+    assert calls == [1, 2]
+
+
+def test_cache_memoize_unhashable_args(cache: Cache):
+    """Test that cache.memoize() keys unhashable arguments by value."""
+    calls = []
+
+    @cache.memoize()
+    def func(a, b=None):
+        calls.append((a, b))
+        return len(calls)
+
+    first = func([1, [2, 3]], {"x": {1, 2}})
+    assert func([1, [2, 3]], {"x": {2, 1}}) == first
+    assert func(a=[1, [2, 3]], b={"x": {1, 2}}) == first
+    assert len(calls) == 1
+
+    assert func([1, [2, 4]], {"x": {1, 2}}) != first
+    assert len(calls) == 2
+
+
+def test_cache_memoize_unhashable_container_types(cache: Cache):
+    """Test that cache.memoize() doesn't mix up containers of different types that hold equal
+    items."""
+
+    @cache.memoize()
+    def func(a):
+        return a
+
+    values = [[1], (1,), {1}, frozenset({1}), {1: 1}, [(1,)], ([1],), [[1]]]
+    keys = {func.cache_key(value) for value in values}
+
+    assert len(keys) == len(values)
+
+
+def test_cache_memoize_unhashable_args_are_copied(cache: Cache):
+    """Test that mutating an unhashable argument after the call doesn't change its cache key."""
+    calls = []
+
+    @cache.memoize()
+    def func(a):
+        calls.append(list(a))
+        return len(calls)
+
+    items = [1, 2]
+    assert func(items) == 1
+
+    items.append(3)
+    assert func(items) == 2
+    assert func([1, 2]) == 1
+    assert func([1, 2, 3]) == 2
+    assert len(calls) == 2
+
+
+@parametrize("typed", [False, True])
+def test_cache_memoize_nested_arg_types(cache: Cache, typed: bool):
+    """Test that cache.memoize(typed=True) factors in the types of items nested in containers."""
+
+    @cache.memoize(typed=typed)
+    def func(a):
+        return a
+
+    for left, right in (((1,), (1.0,)), ([1], [1.0]), ({"a": 1}, {"a": 1.0}), ({1}, {1.0})):
+        assert (func.cache_key(left) != func.cache_key(right)) is typed
+
+
+def test_cache_memoize_unhashable_object_identity(cache: Cache):
+    """Test that cache.memoize() falls back to identity for unhashable objects that aren't
+    builtin containers."""
+
+    class Unhashable:
+        __hash__ = None  # type: ignore[assignment]
+
+        def __eq__(self, other: t.Any) -> bool:
+            return True
+
+    calls = []
+
+    @cache.memoize()
+    def func(a):
+        calls.append(a)
+        return len(calls)
+
+    obj = Unhashable()
+    assert func(obj) == 1
+    assert func(obj) == 1
+    assert func(Unhashable()) == 2
+    assert len(calls) == 2
+
+
+def test_cache_memoize_unhashable_object_identity_keeps_object_alive(cache: Cache):
+    """Test that an identity cache key holds its object so a recycled id() can't cause a false
+    hit."""
+
+    class Unhashable:
+        __hash__ = None  # type: ignore[assignment]
+
+    @cache.memoize()
+    def func(a):
+        return 1
+
+    obj = Unhashable()
+    ref = weakref.ref(obj)
+    func(obj)
+    del obj
+    gc.collect()
+    assert ref() is not None
+
+    cache.clear()
+    gc.collect()
+    assert ref() is None
+
+
+def test_cache_memoize_default_arg_normalization(cache: Cache):
+    """Test that cache.memoize() treats omitted arguments the same as passing their defaults."""
+
+    @cache.memoize()
+    def func(a, b=2, *args, c=3, **kwargs):
+        return a, b, args, c, kwargs
+
+    for args, kwargs in (
+        ((1, 2), {}),
+        ((1,), {"b": 2}),
+        ((1,), {"c": 3}),
+        ((1, 2), {"c": 3}),
+        ((), {"a": 1, "b": 2, "c": 3}),
+    ):
+        assert func.cache_key(*args, **kwargs) == func.cache_key(1)
+
+    assert func.cache_key(1, 3) != func.cache_key(1)
+    assert func.cache_key(1, c=4) != func.cache_key(1)
+    assert func.cache_key(1, 2, 3) != func.cache_key(1)
+    assert func.cache_key(1, d=4) != func.cache_key(1)
+
+
+def test_cache_memoize_kwargs_order(cache: Cache):
+    """Test that cache.memoize() ignores the order of extra keyword arguments."""
+
+    @cache.memoize()
+    def func(**kwargs):
+        return kwargs
+
+    assert func.cache_key(a=1, b=2) == func.cache_key(b=2, a=1)
+    assert func.cache_key(a=1, b=2) != func.cache_key(a=1, b=3)
+
+
+def test_cache_memoize_positional_only_name_in_kwargs(cache: Cache):
+    """Test that cache.memoize() accepts a keyword named like a positional-only parameter when
+    the function takes **kwargs."""
+
+    @cache.memoize()
+    def func(a, /, **kwargs):
+        return a, kwargs
+
+    assert func(1, a=2) == (1, {"a": 2})
+    assert func.cache_key(1, a=2) != func.cache_key(1)
+
+    with pytest.raises(TypeError):
+        func(a=2)  # type: ignore[call-arg]
+
+
+def test_cache_memoize_invalid_arguments(cache: Cache):
+    """Test that cache.memoize() raises TypeError for calls the function wouldn't accept and
+    doesn't cache anything."""
+
+    @cache.memoize()
+    def func(a):
+        return a
+
+    with pytest.raises(TypeError):
+        func()  # type: ignore[call-arg]
+
+    with pytest.raises(TypeError):
+        func(1, 2)  # type: ignore[call-arg]
+
+    with pytest.raises(TypeError):
+        func(b=1)  # type: ignore[call-arg]
+
+    assert len(cache) == 0
+
+
+def test_cache_memoize_invalidate(cache: Cache):
+    """Test that cache.memoize() adds an invalidate() that removes only that function's entries."""
+    calls = []
+
+    @cache.memoize()
+    def func1(a):
+        calls.append(a)
+        return a
+
+    @cache.memoize()
+    def func2(a):
+        return a
+
+    for i in range(3):
+        func1(i)
+        func2(i)
+
+    cache.set("other", 1)
+    cache.set((func1.uncached,), 2)
+    assert len(cache) == 8
+
+    assert func1.invalidate() == 3
+    assert len(cache) == 5
+    assert func1.invalidate() == 0
+    assert cache.has("other")
+    assert cache.has((func1.uncached,))
+    assert all(cache.has(func2.cache_key(i)) for i in range(3))
+
+    func1(0)
+    assert calls == [0, 1, 2, 0]
+
+
+@pytest.mark.asyncio
+async def test_cache_memoize_async_unhashable_args(cache: Cache):
+    """Test that cache.memoize() keys unhashable arguments by value for async functions."""
+    calls = []
+
+    @cache.memoize()
+    async def func(a, **kwargs):
+        calls.append((a, kwargs))
+        return len(calls)
+
+    assert await func([1, 2], b={"c": 1}) == 1
+    assert await func([1, 2], b={"c": 1}) == 1
+    assert await func([1, 2], b={"c": 2}) == 2
 
 
 @pytest.mark.parametrize("cache_class", CACHE_CLASSES)
