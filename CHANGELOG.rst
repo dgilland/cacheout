@@ -5,6 +5,7 @@ Changelog
 Unreleased
 ----------
 
+- Avoid stale LFU eviction counters when an on-set callback removes the inserted entry.
 - Propagate timer and expiration-callback errors from reads instead of treating ``KeyError`` as
   a cache miss, running defaults, or overwriting a callback replacement.
 - Preserve entries refreshed by deletion callbacks during an expiration sweep.
