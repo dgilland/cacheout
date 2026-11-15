@@ -1,11 +1,25 @@
 import asyncio
+from decimal import Decimal, Overflow, localcontext
 from functools import partial
 import re
 import typing as t
 
 import pytest
 
-from cacheout import UNSET, Cache, RemovalCause
+from cacheout import (
+    UNSET,
+    Cache,
+    FIFOCache,
+    LFUCache,
+    LIFOCache,
+    LRUCache,
+    MRUCache,
+    RemovalCause,
+    RRCache,
+)
+
+
+CACHE_CLASSES = [Cache, FIFOCache, LFUCache, LIFOCache, LRUCache, MRUCache, RRCache]
 
 
 parametrize = pytest.mark.parametrize
@@ -916,3 +930,257 @@ def test_cache_memoize_positional_only_keywords(cache: Cache):
     assert func(a=3) == (1, {"a": 3})
     assert func(3) == (3, {})
     assert func.cache_key(a=3) != func.cache_key(3)
+
+
+@pytest.mark.parametrize("cache_class", CACHE_CLASSES)
+@pytest.mark.parametrize("error_class", [ValueError, KeyError])
+def test_cache_delete_callback_error_keeps_bookkeeping_consistent(cache_class, error_class):
+    cache = cache_class(timer=lambda: 0, enable_stats=True)
+    cache.set("key", "old", ttl=1)
+    error = error_class("callback failed")
+
+    def fail(key, value, cause):
+        assert (key, value, cause) == ("key", "old", RemovalCause.DELETE)
+        raise error
+
+    cache.on_delete = fail
+    with pytest.raises(error_class) as caught:
+        cache.delete("key")
+    assert caught.value is error
+    assert cache.copy() == {}
+    assert cache.expire_times() == {}
+    cache.on_delete = None
+    cache.set("new", "value")
+    assert cache.popitem() == ("new", "value")
+
+
+@pytest.mark.parametrize("cache_class", CACHE_CLASSES)
+def test_cache_delete_callback_can_replace_key_with_its_own_ttl(cache_class):
+    now = [0]
+    cache = cache_class(timer=lambda: now[0])
+    cache.set("key", "old", ttl=1)
+
+    def replace(key, value, cause):
+        assert cache.expire_times() == {}
+        cache.set(key, "new", ttl=5)
+
+    cache.on_delete = replace
+    assert cache.delete("key") == 1
+    assert cache.expire_times() == {"key": 5}
+    assert cache.get("key") == "new"
+    cache.on_delete = None
+    now[0] = 5
+    assert cache.delete_expired() == 1
+    assert cache.copy() == {}
+
+
+@pytest.mark.parametrize("cache_class", CACHE_CLASSES)
+@pytest.mark.parametrize("replacement_ttl", [0, 5])
+def test_cache_expiration_sweep_preserves_other_key_refreshed_by_callback(
+    cache_class, replacement_ttl
+):
+    now = [0]
+    cache = cache_class(timer=lambda: now[0])
+    cache.set("first", "old first", ttl=1)
+    cache.set("second", "old second", ttl=1)
+    removals = []
+
+    def replace_other(key, value, cause):
+        removals.append((key, value, cause))
+        if key == "first":
+            cache.set("second", "fresh second", ttl=replacement_ttl)
+
+    cache.on_delete = replace_other
+    now[0] = 1
+    assert cache.delete_expired() == 1
+    assert cache.copy() == {"second": "fresh second"}
+    assert removals == [("first", "old first", RemovalCause.EXPIRED)]
+    assert cache.expire_times() == ({"second": 6} if replacement_ttl else {})
+    if isinstance(cache, LFUCache):
+        assert cache._access_counts == {"second": -1}
+
+    now[0] = 6
+    assert cache.delete_expired() == (1 if replacement_ttl else 0)
+    assert cache.copy() == ({} if replacement_ttl else {"second": "fresh second"})
+
+
+@pytest.mark.parametrize("cache_class", CACHE_CLASSES)
+def test_cache_expiration_sweep_does_not_count_other_key_deleted_by_callback(cache_class):
+    now = [0]
+    cache = cache_class(timer=lambda: now[0])
+    cache.set("first", 1, ttl=1)
+    cache.set("second", 2, ttl=1)
+
+    def delete_other(key, value, cause):
+        if key == "first":
+            assert cache.delete("second") == 1
+
+    cache.on_delete = delete_other
+    now[0] = 1
+    assert cache.delete_expired() == 1
+    assert cache.copy() == {}
+    assert cache.expire_times() == {}
+
+
+@pytest.mark.parametrize("cache_class", CACHE_CLASSES)
+@pytest.mark.parametrize("operation", ["insert", "replace", "evict"])
+def test_cache_failed_expiration_preserves_cache(cache_class, operation):
+    cache = cache_class(maxsize=1, timer=lambda: Decimal("9e9"), enable_stats=True)  # type: ignore
+    if operation != "insert":
+        cache.set("original", "old value", ttl=Decimal(20))
+    key = "original" if operation == "replace" else "new"
+    original_items = cache.copy()
+    original_expirations = cache.expire_times()
+
+    with localcontext() as context:
+        context.Emax = 9
+        context.traps[Overflow] = True
+        with pytest.raises(Overflow):
+            cache.set(key, "rejected value", ttl=Decimal("9e9"))
+
+    assert cache.copy() == original_items
+    assert cache.expire_times() == original_expirations
+    assert cache.stats.info().eviction_count == 0
+
+    # The replacement policy must still be usable after the failed write.
+    if original_items:
+        assert cache.popitem() == ("original", "old value")
+    cache.set("recovered", "new value", ttl=Decimal(5))
+    assert cache.popitem() == ("recovered", "new value")
+
+
+@pytest.mark.parametrize("replace", [False, True])
+def test_cache_failed_timer_preserves_cache(replace):
+    cache = Cache(timer=lambda: 0)
+    if replace:
+        cache.set("key", "old value", ttl=10)
+    original_items = cache.copy()
+    original_expirations = cache.expire_times()
+
+    def failed_timer():
+        raise RuntimeError("timer failed")
+
+    cache.configure(timer=failed_timer)
+    with pytest.raises(RuntimeError, match="timer failed"):
+        cache.set("key", "rejected value", ttl=5)
+
+    assert cache.copy() == original_items
+    assert cache.expire_times() == original_expirations
+
+
+@pytest.mark.parametrize("cache_class", CACHE_CLASSES)
+@pytest.mark.parametrize("operation", ["get", "has", "add"])
+def test_cache_expiration_callback_key_error_propagates(cache_class, operation):
+    now = [0]
+    cache = cache_class(timer=lambda: now[0], enable_stats=True)
+    cache.set("key", "old", ttl=1)
+    error = KeyError("callback configuration missing")
+    defaults = []
+    reads = []
+    removals = []
+
+    def default(key):
+        defaults.append(key)
+        return "default"
+
+    def fail(key, value, cause):
+        removals.append((key, value, cause))
+        raise error
+
+    cache.default = default
+    cache.on_get = lambda *args: reads.append(args)
+    cache.on_delete = fail
+    now[0] = 1
+    with pytest.raises(KeyError) as caught:
+        if operation == "get":
+            cache.get("key")
+        elif operation == "has":
+            cache.has("key")
+        else:
+            cache.add("key", "new")
+
+    assert caught.value is error
+    assert removals == [("key", "old", RemovalCause.EXPIRED)]
+    assert defaults == []
+    assert reads == []
+    assert cache.copy() == {}
+    assert cache.expire_times() == {}
+    assert cache.stats.info().access_count == 0
+    if isinstance(cache, LFUCache):
+        assert cache._access_counts == {}
+
+    cache.on_delete = None
+    cache.set("recovered", "value")
+    assert cache.popitem() == ("recovered", "value")
+
+
+@pytest.mark.parametrize("cache_class", CACHE_CLASSES)
+def test_cache_expiration_callback_key_error_preserves_replacement(cache_class):
+    now = [0]
+    cache = cache_class(timer=lambda: now[0], enable_stats=True)
+    cache.set("key", "old", ttl=1)
+    error = KeyError("callback failed after replacement")
+    defaults = []
+
+    def replace_and_fail(key, value, cause):
+        cache.set(key, "replacement", ttl=5)
+        raise error
+
+    cache.on_delete = replace_and_fail
+    now[0] = 1
+    with pytest.raises(KeyError) as caught:
+        cache.get("key", default=defaults.append)
+    assert caught.value is error
+    assert defaults == []
+    assert cache.copy() == {"key": "replacement"}
+    assert cache.expire_times() == {"key": 6}
+    assert cache.stats.info().access_count == 0
+    if isinstance(cache, LFUCache):
+        assert cache._access_counts == {"key": -1}
+    cache.on_delete = None
+    assert cache.get("key") == "replacement"
+
+
+@pytest.mark.parametrize("cache_class", CACHE_CLASSES)
+def test_cache_timer_key_error_propagates_without_replacing_cached_value(cache_class):
+    cache = cache_class(timer=lambda: 0, enable_stats=True)
+    cache.set("key", "old", ttl=5)
+    error = KeyError("clock configuration missing")
+    defaults = []
+    reads = []
+
+    def fail():
+        raise error
+
+    cache.configure(timer=fail)
+    cache.on_get = lambda *args: reads.append(args)
+    with pytest.raises(KeyError) as caught:
+        cache.get("key", default=defaults.append)
+    assert caught.value is error
+    assert defaults == []
+    assert reads == []
+    assert cache.copy() == {"key": "old"}
+    assert cache.expire_times() == {"key": 5}
+    assert cache.stats.info().access_count == 0
+    if isinstance(cache, LFUCache):
+        assert cache._access_counts == {"key": -1}
+
+
+@pytest.mark.parametrize("cache_class", CACHE_CLASSES)
+def test_cache_ordinary_expiration_still_runs_default_and_records_miss(cache_class):
+    now = [0]
+    cache = cache_class(timer=lambda: now[0], enable_stats=True)
+    cache.set("key", "old", ttl=1)
+    removals = []
+    reads = []
+    cache.on_delete = lambda *args: removals.append(args)
+    cache.on_get = lambda *args: reads.append(args)
+    now[0] = 1
+    assert cache.get("key", default=lambda key: "new") == "new"
+    assert removals == [("key", "old", RemovalCause.EXPIRED)]
+    assert reads == [("key", "new", False)]
+    assert cache.copy() == {"key": "new"}
+    assert cache.expire_times() == {}
+    assert cache.stats.info().miss_count == 1
+    assert cache.get("key") == "new"
+    assert cache.stats.info().hit_count == 1

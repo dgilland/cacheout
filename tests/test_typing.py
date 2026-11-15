@@ -52,7 +52,7 @@ def supported_calls() -> None:
 def test_supported_calls():
     cache = Cache(maxsize=None)
     cache.set("key", 1)
-    keys: list[str] = ["key"]
+    keys: list[str] = ["key"]  # type: ignore
     assert cache.get_many(keys) == {"key": 1}
     assert cache.delete_many(keys) == 1
 
