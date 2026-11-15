@@ -137,3 +137,113 @@ def test_lfu_set_many_preserves_eviction_order():
     assert "hot" in cache
     assert "cold" not in cache
     assert "next" in cache
+
+
+@pytest.mark.parametrize("action", ["delete", "clear", "expire"])
+def test_lfu_set_on_set_removal(action):
+    def on_set(key, _, __):
+        if key != "removed":
+            return
+
+        if action == "delete":
+            cache.delete(key)
+        elif action == "clear":
+            cache.clear()
+        else:
+            nonlocal timer
+            timer = 2
+            cache.delete_expired()
+
+    timer = 0
+    cache = LFUCache(maxsize=1, timer=lambda: timer, on_set=on_set)
+    cache.set("removed", 0, ttl=1)
+    assert not cache._access_counts
+    cache.set("first", 1)
+    cache.set("second", 2)
+    assert dict(cache.items()) == {"second": 2}
+    assert cache.popitem() == ("second", 2)
+
+
+@pytest.mark.parametrize("action", ["delete", "clear", "expire"])
+def test_lfu_add_on_set_removal(action):
+    def on_set(key, _, __):
+        if key != "removed":
+            return
+
+        if action == "delete":
+            cache.delete(key)
+        elif action == "clear":
+            cache.clear()
+        else:
+            nonlocal timer
+            timer = 2
+            cache.delete_expired()
+
+    timer = 0
+    cache = LFUCache(maxsize=1, timer=lambda: timer, on_set=on_set)
+    cache.add("removed", 0, ttl=1)
+    assert not cache._access_counts
+    cache.set("first", 1)
+    cache.set("second", 2)
+    assert dict(cache.items()) == {"second": 2}
+    assert cache.popitem() == ("second", 2)
+
+
+def test_lfu_set_on_set_removal_then_error():
+    error = RuntimeError("on_set callback failed")
+
+    def on_set(key, _, __):
+        if key == "removed":
+            cache.delete(key)
+            raise error
+
+    cache = LFUCache(maxsize=1, on_set=on_set)
+    with pytest.raises(RuntimeError) as raised:
+        cache.set("removed", 1)
+    assert raised.value is error
+    assert not cache._access_counts
+    cache.set("next", 2)
+    assert cache.popitem() == ("next", 2)
+
+
+def test_lfu_add_on_set_removal_then_error():
+    error = RuntimeError("on_set failed")
+
+    def on_set(key, _, __):
+        if key == "removed":
+            cache.delete(key)
+            raise error
+
+    cache = LFUCache(maxsize=1, on_set=on_set)
+    with pytest.raises(RuntimeError) as raised:
+        cache.add("removed", 1)
+    assert raised.value is error
+    assert not cache._access_counts
+    cache.set("next", 2)
+    assert cache.popitem() == ("next", 2)
+
+
+def test_lfu_set_on_set_replacement_remains_counted():
+    def on_set(key, value, _):
+        if value == "original":
+            cache.set(key, "replacement")
+
+    cache = LFUCache(maxsize=1, on_set=on_set)
+    cache.set("key", "original")
+    assert dict(cache.items()) == {"key": "replacement"}
+    assert cache._access_counts["key"] == -2
+    cache.set("next", "next")
+    assert dict(cache.items()) == {"next": "next"}
+
+
+def test_lfu_add_on_set_replacement_remains_counted():
+    def on_set(key, value, _):
+        if value == "original":
+            cache.set(key, "replacement")
+
+    cache = LFUCache(maxsize=1, on_set=on_set)
+    cache.add("key", "original")
+    assert dict(cache.items()) == {"key": "replacement"}
+    assert cache._access_counts["key"] == -2
+    cache.set("next", "next")
+    assert dict(cache.items()) == {"next": "next"}

@@ -632,8 +632,9 @@ class Cache:
                 try:
                     self._popitem(RemovalCause.FULL)
                 except KeyError:  # pragma: no cover
-                    break
-                count += 1
+                    pass
+                else:
+                    count += 1
 
         return count
 
