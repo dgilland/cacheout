@@ -721,7 +721,8 @@ class Cache:
         hashable cache key. Keys are tuples compared by equality, so distinct arguments can't
         collide. Unhashable arguments are frozen structurally (lists, tuples, dicts, sets) or
         matched by identity as a last resort. ``<function>.invalidate()`` deletes every cache entry
-        for the function and returns the number of entries removed.
+        for the function and returns the number of entries removed. Unhashable callable objects
+        are keyed by identity, so equal but distinct instances have separate cache entries.
 
         Keyword Args:
             ttl: TTL value. Defaults to ``None`` which uses :attr:`ttl`. Time units
@@ -733,17 +734,25 @@ class Cache:
         marker = object()
 
         def decorator(func: t.Callable[P, R]) -> MemoizedFunction[P, R]:
+            # Preserve hashable callable keys and retain unhashable callables by identity.
+            func_key = func if _is_hashable(func) else _Identity(func)
             signature = inspect.signature(func, follow_wrapped=False)
             params = signature.parameters.values()
             posonly = tuple(p.name for p in params if p.kind is inspect.Parameter.POSITIONAL_ONLY)
             varkw = next((p.name for p in params if p.kind is inspect.Parameter.VAR_KEYWORD), None)
 
             def cache_key(*args, **kwargs):
-                return _make_memoize_key(func, signature, posonly, varkw, args, kwargs, typed)
+                return _make_memoize_key(func_key, signature, posonly, varkw, args, kwargs, typed)
 
             def invalidate() -> int:
                 return self.delete_many(
-                    lambda key: isinstance(key, tuple) and len(key) == 2 and key[0] is func
+                    lambda key: (
+                        isinstance(key, tuple)
+                        and len(key) == 2
+                        and (
+                            key[0] is func or (isinstance(key[0], _Identity) and key[0].obj is func)
+                        )
+                    )
                 )
 
             if inspect.iscoroutinefunction(func):
@@ -802,7 +811,7 @@ class _Identity:
 
 
 def _make_memoize_key(  # noqa: PLR0917
-    func: t.Callable[..., t.Any],
+    func: t.Hashable,
     signature: inspect.Signature,
     posonly: t.Tuple[str, ...],
     varkw: t.Optional[str],
