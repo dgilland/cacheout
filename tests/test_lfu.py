@@ -386,3 +386,71 @@ def test_lfu_failed_deadline_does_not_touch_existing_count():
     assert raised.value is error
     assert dict(cache.items()) == {"key": "old"}
     assert cache._access_counts == before
+
+
+@pytest.mark.parametrize("callback", ["on_set", "on_get"])
+@pytest.mark.parametrize("error_type", [RuntimeError, BaseException])
+def test_lfu_default_error_preserves_live_entry_eviction(callback, error_type):
+    error = error_type("callback failed")
+
+    def fail(*args):
+        raise error
+
+    cache = LFUCache(maxsize=1, **{callback: fail})
+    with pytest.raises(error_type) as raised:
+        cache.get("first", default=lambda key: 1)
+    assert raised.value is error
+    assert dict(cache.items()) == {"first": 1}
+    assert cache._access_counts["first"] == -1
+    cache.on_set = cache.on_get = None
+    cache.set("second", 2)
+    assert dict(cache.items()) == {"second": 2}
+    assert cache.popitem() == ("second", 2)
+
+
+def test_lfu_on_get_error_does_not_increment_existing_count():
+    cache = LFUCache()
+    cache.set("key", 1)
+    before = cache._access_counts.copy()
+    error = RuntimeError("on_get failed")
+
+    def fail(*args):
+        raise error
+
+    cache.on_get = fail
+    with pytest.raises(RuntimeError) as raised:
+        cache.get("key")
+    assert raised.value is error
+    assert cache._access_counts == before
+
+
+@pytest.mark.parametrize("callback", ["on_set", "on_get"])
+def test_lfu_default_removal_then_error_does_not_add_count(callback):
+    error = RuntimeError("callback failed")
+
+    def remove_and_fail(key, *args):
+        cache.delete(key)
+        raise error
+
+    cache = LFUCache(**{callback: remove_and_fail})
+    with pytest.raises(RuntimeError) as raised:
+        cache.get("key", default=lambda key: 1)
+    assert raised.value is error
+    assert not cache._cache
+    assert not cache._access_counts
+
+
+def test_lfu_default_nested_replacement_then_error_not_counted_twice():
+    error = RuntimeError("on_set failed")
+
+    def replace_and_fail(key, value, old_value):
+        if value == "original":
+            cache.set(key, "replacement")
+            raise error
+
+    cache = LFUCache(on_set=replace_and_fail)
+    with pytest.raises(RuntimeError) as raised:
+        cache.get("key", default=lambda key: "original")
+    assert raised.value is error
+    assert cache._cache["key"] == "replacement"
+    assert cache._access_counts["key"] == -1
