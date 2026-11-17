@@ -48,7 +48,14 @@ class LFUCache(Cache):
 
     def set(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
         with self._lock:
-            super().set(key, value, ttl=ttl)
+            try:
+                super().set(key, value, ttl=ttl)
+            except BaseException:
+                # A failed on_set can leave an inserted value without a counter.
+                # Do not count failed pre-insertion work or a nested replacement twice.
+                if key not in self._access_counts:
+                    self._touch(key)
+                raise
             # on_set may have removed the entry reentrantly.
             if key in self._cache:
                 self._touch(key)
@@ -57,7 +64,14 @@ class LFUCache(Cache):
 
     def add(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
         with self._lock:
-            super().add(key, value, ttl=ttl)
+            try:
+                super().add(key, value, ttl=ttl)
+            except BaseException:
+                # A failed on_set can leave an inserted value without a counter.
+                # Do not count failed pre-insertion work or a nested replacement twice.
+                if key not in self._access_counts:
+                    self._touch(key)
+                raise
             # on_set may have removed the entry reentrantly.
             if key in self._cache:
                 self._touch(key)
