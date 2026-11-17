@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import dataclass, field
 from decimal import Decimal, Overflow, localcontext
 from functools import partial
 import gc
@@ -1447,3 +1448,123 @@ def test_cache_ordinary_expiration_still_runs_default_and_records_miss(cache_cla
     assert cache.stats.info().miss_count == 1
     assert cache.get("key") == "new"
     assert cache.stats.info().hit_count == 1
+
+
+@parametrize("typed", [False, True])
+def test_cache_memoize_unhashable_callable(cache: Cache, typed: bool):
+    @dataclass
+    class Offset:
+        offset: int
+        calls: int = field(default=0, compare=False)
+
+        def __call__(self, value=1):
+            self.calls += 1
+            return self.offset + value
+
+    target = Offset(10)
+    other_target = Offset(10)
+    func = cache.memoize(typed=typed)(target)
+    other = cache.memoize(typed=typed)(other_target)
+
+    assert func() == 11
+    assert func(value=1) == 11
+    assert func(2) == 12
+    assert target.calls == 2
+    assert func.uncached is target
+    assert cache.get(func.cache_key(2)) == 12
+
+    # Equal callable instances still own separate cache entries.
+    assert target == other_target
+    assert func.cache_key() != other.cache_key()
+    assert other() == 11
+    assert other_target.calls == 1
+    assert len(cache) == 3
+
+    assert func.invalidate() == 2
+    assert func.invalidate() == 0
+    assert cache.has(other.cache_key())
+    assert func() == 11
+    assert target.calls == 3
+
+
+@parametrize("typed", [False, True])
+def test_cache_memoize_unhashable_callable_shared_invalidation(cache: Cache, typed: bool):
+    @dataclass
+    class Identity:
+        calls: int = field(default=0, compare=False)
+
+        def __call__(self, value):
+            self.calls += 1
+            return value
+
+    target = Identity()
+    first = cache.memoize(typed=typed)(target)
+    second = cache.memoize(typed=typed)(target)
+    assert first.cache_key(1) == second.cache_key(1)
+    assert hash(first.cache_key(1)) == hash(second.cache_key(1))
+    assert first(1) == 1
+    assert second(value=1) == 1
+    assert second(2) == 2
+    assert target.calls == 2
+    cache.set("unrelated", 3)
+
+    assert first.invalidate() == 2
+    assert second.invalidate() == 0
+    assert cache.copy() == {"unrelated": 3}
+
+
+@pytest.mark.asyncio
+@parametrize("typed", [False, True])
+async def test_cache_memoize_unhashable_async_partial(cache: Cache, typed: bool):
+    class UnhashablePartial(partial):
+        __hash__ = None  # type: ignore[assignment]
+
+    calls = []
+
+    async def add(left, right):
+        calls.append((left, right))
+        return left + right
+
+    target = UnhashablePartial(add, 10)
+    func = cache.memoize(typed=typed)(target)
+    assert await func(2) == 12
+    assert await func(right=2) == 12
+    assert calls == [(10, 2)]
+    assert func.uncached is target
+    assert cache.get(func.cache_key(2)) == 12
+    assert func.invalidate() == 1
+    assert await func(2) == 12
+    assert calls == [(10, 2), (10, 2)]
+
+
+@parametrize("typed", [False, True])
+def test_cache_memoize_hashable_callable_keys_unchanged(cache: Cache, typed: bool):
+    calls = []
+
+    @dataclass(frozen=True)
+    class Offset:
+        offset: int
+
+        def __call__(self, value):
+            calls.append(self)
+            return self.offset + value
+
+    target = Offset(10)
+    equal_target = Offset(10)
+    first = cache.memoize(typed=typed)(target)
+    second = cache.memoize(typed=typed)(equal_target)
+
+    # Hashable callables still appear directly in keys and compare by equality.
+    first_key = first.cache_key(1)
+    second_key = second.cache_key(1)
+    assert isinstance(first_key, tuple)
+    assert isinstance(second_key, tuple)
+    assert first_key[0] is target
+    assert second_key[0] is equal_target
+    assert first_key == second_key
+    assert first(1) == 11
+    assert second(1) == 11
+    assert len(calls) == 1
+    # Invalidation still matches the original stored callable by identity.
+    assert second.invalidate() == 0
+    assert first.invalidate() == 1
