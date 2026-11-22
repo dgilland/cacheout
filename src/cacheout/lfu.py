@@ -39,7 +39,13 @@ class LFUCache(Cache):
 
     def get(self, key: t.Hashable, default: t.Any = None) -> t.Any:
         with self._lock:
-            value = super().get(key, default=default)
+            try:
+                value = super().get(key, default=default)
+            except BaseException:
+                # A callable default can insert before on_set/on_get raises.
+                if key not in self._access_counts:
+                    self._touch(key)
+                raise
             self._touch(key)
             return value
 
@@ -47,14 +53,30 @@ class LFUCache(Cache):
 
     def set(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
         with self._lock:
-            super().set(key, value, ttl=ttl)
+            try:
+                super().set(key, value, ttl=ttl)
+            except BaseException:
+                # A failed on_set can leave an inserted value without a counter.
+                # Do not count failed pre-insertion work or a nested replacement twice.
+                if key not in self._access_counts:
+                    self._touch(key)
+                raise
+            # on_set may have removed the entry reentrantly.
             self._touch(key)
 
     set.__doc__ = Cache.set.__doc__
 
     def add(self, key: t.Hashable, value: t.Any, ttl: t.Optional[T_TTL] = None) -> None:
         with self._lock:
-            super().add(key, value, ttl=ttl)
+            try:
+                super().add(key, value, ttl=ttl)
+            except BaseException:
+                # A failed on_set can leave an inserted value without a counter.
+                # Do not count failed pre-insertion work or a nested replacement twice.
+                if key not in self._access_counts:
+                    self._touch(key)
+                raise
+            # on_set may have removed the entry reentrantly.
             self._touch(key)
 
     add.__doc__ = Cache.add.__doc__
