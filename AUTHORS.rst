@@ -25,3 +25,4 @@ Contributors
 - hassan, `h55n@github <https://github.com/h55n>`_
 - `anishpentyala@github <https://github.com/anishpentyala>`_
 - Yash Dhankhar, `OnlineBunker@github <https://github.com/OnlineBunker>`_
+- `FFspiky@github <https://github.com/FFspiky>`_

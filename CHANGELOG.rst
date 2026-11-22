@@ -5,6 +5,8 @@ Changelog
 Unreleased
 ----------
 
+- Restore memoization of unhashable callable objects after the tuple-key rewrite. Match these
+  callables by identity and invalidate their entries across repeated decorations of the same object.
 - Avoid stale LFU eviction counters when an on-set callback removes the inserted entry.
 - Avoid ghost counters in LFU when an on_set callback removes the same entry.
 - Propagate timer and expiration-callback errors from reads instead of treating ``KeyError`` as a
