@@ -9,7 +9,7 @@ authors = [{name = "Derrick Gilland", email = "dgilland@gmail.com"}]
 description = "A caching library for Python"
 readme = "README.rst"
 license = "MIT"
-keywords = ["cacheout cache caching memoize memoization fifo lifo lfu lru mru"]
+keywords = ["cacheout", "cache", "caching", "memoize", "memoization", "fifo", "lifo", "lfu", "lru", "mru"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
