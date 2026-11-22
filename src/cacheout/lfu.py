@@ -46,8 +46,7 @@ class LFUCache(Cache):
                 if key not in self._access_counts:
                     self._touch(key)
                 raise
-            if key in self._cache:
-                self._touch(key)
+            self._touch(key)
             return value
 
     get.__doc__ = Cache.get.__doc__
@@ -63,8 +62,7 @@ class LFUCache(Cache):
                     self._touch(key)
                 raise
             # on_set may have removed the entry reentrantly.
-            if key in self._cache:
-                self._touch(key)
+            self._touch(key)
 
     set.__doc__ = Cache.set.__doc__
 
@@ -79,8 +77,7 @@ class LFUCache(Cache):
                     self._touch(key)
                 raise
             # on_set may have removed the entry reentrantly.
-            if key in self._cache:
-                self._touch(key)
+            self._touch(key)
 
     add.__doc__ = Cache.add.__doc__
 
