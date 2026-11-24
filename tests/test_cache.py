@@ -557,6 +557,67 @@ async def test_cache_memoize_async_runtime_error_regression(cache: Cache):
     await func()
 
 
+@pytest.mark.asyncio
+@parametrize("typed", [False, True])
+@parametrize("use_partial", [False, True])
+async def test_memoize_async_callable_instance(cache: Cache, typed: bool, use_partial: bool):
+    @dataclass
+    class AsyncCallable:
+        calls: int = 0
+
+        async def __call__(self, value, *, offset=0):
+            self.calls += 1
+            await asyncio.sleep(0)
+            return value + offset
+
+    instance = AsyncCallable()
+    target = partial(instance, offset=10) if use_partial else instance
+    memoized = cache.memoize(typed=typed)(target)
+    expected = 12 if use_partial else 2
+
+    assert await memoized(2) == expected
+    assert await memoized(value=2) == expected
+    assert instance.calls == 1
+    assert cache.get(memoized.cache_key(2)) == expected
+    assert memoized.uncached is target
+    assert memoized.invalidate() == 1
+    assert await memoized(2) == expected
+    assert instance.calls == 2
+
+
+@pytest.mark.asyncio
+async def test_memoize_async_callable_failure_is_not_cached(cache: Cache):
+    class AsyncCallable:
+        def __init__(self):
+            self.calls = 0
+
+        async def __call__(self):
+            self.calls += 1
+            if self.calls == 1:
+                raise ValueError("try again")
+            return 42
+
+    instance = AsyncCallable()
+    memoized = cache.memoize()(instance)
+    with pytest.raises(ValueError, match="try again"):
+        await memoized()
+    assert len(cache) == 0
+    assert await memoized() == 42
+    assert await memoized() == 42
+    assert instance.calls == 2
+
+
+def test_memoize_class_with_async_call_is_synchronous(cache: Cache):
+    class AsyncCallable:
+        async def __call__(self):
+            return 42
+
+    constructor = cache.memoize()(AsyncCallable)
+    instance = constructor()
+    assert isinstance(instance, AsyncCallable)
+    assert constructor() is instance
+
+
 def test_cache_size(cache: Cache):
     """Test that cache.size() returns the number of cache keys."""
     assert cache.size() == len(cache) == 0
