@@ -99,26 +99,23 @@ class CacheStatsTracker:
 
     def inc_hit_count(self, count: int = 1) -> None:
         """Increment the number of cache hits."""
-        if not self._enabled or self._paused:
-            return
-
         with self._lock:
+            if not self._enabled or self._paused:
+                return
             self._stats.hit_count += count
 
     def inc_miss_count(self, count: int = 1) -> None:
         """Increment the number of cache misses."""
-        if not self._enabled or self._paused:
-            return
-
         with self._lock:
+            if not self._enabled or self._paused:
+                return
             self._stats.miss_count += count
 
     def inc_eviction_count(self, count: int = 1) -> None:
         """Increment the number of cache evictions."""
-        if not self._enabled or self._paused:
-            return
-
         with self._lock:
+            if not self._enabled or self._paused:
+                return
             self._stats.eviction_count += count
 
     def enable(self) -> None:
