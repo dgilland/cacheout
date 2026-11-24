@@ -1,3 +1,5 @@
+from threading import Event, RLock, Thread, current_thread
+
 import pytest
 
 from cacheout import Cache, CacheManager
@@ -8,6 +10,23 @@ parametrize = pytest.mark.parametrize
 
 class MyCache(Cache):
     pass
+
+
+class CoordinatedLock:
+    def __init__(self, worker, waiting):
+        self.lock = RLock()
+        self.worker = worker
+        self.waiting = waiting
+
+    def __enter__(self):
+        if current_thread() is self.worker:
+            self.waiting.set()
+        if not self.lock.acquire(timeout=5):
+            raise TimeoutError("cache manager operation remained blocked")
+        return self
+
+    def __exit__(self, *args):
+        self.lock.release()
 
 
 def assert_cache_options(cache: Cache, options: dict):
@@ -57,6 +76,72 @@ def test_cache_manager_reconfigure():
 
     assert_cache_options(cacheman[name], new_options)
     assert cacheman[name] is cache
+
+
+@parametrize("action", ["configure", "register", "setup"])
+def test_cache_manager_serializes_creation(monkeypatch, action):  # noqa: PLR0915
+    """Coordinate both operations and release/join workers even when an assertion fails."""
+    creating = Event()
+    release = Event()
+    competing = Event()
+    created = []
+    errors = []
+
+    def factory(**options):
+        cache = Cache(**options)
+        cache.set("saved", "value")
+        created.append(cache)
+        if len(created) == 1:
+            creating.set()
+            assert release.wait(5)
+        return cache
+
+    manager = CacheManager(cache_class=factory)
+    registered = Cache(maxsize=20)
+
+    def configure_first():
+        try:
+            manager.configure("shared", maxsize=10)
+        except Exception as exc:
+            errors.append(exc)
+
+    def configure_second():
+        try:
+            if action == "configure":
+                manager.configure("shared", maxsize=20)
+            elif action == "register":
+                manager.register("shared", registered)
+            else:
+                manager.setup({"shared": {"maxsize": 20}})
+        except Exception as exc:
+            errors.append(exc)
+        finally:
+            competing.set()
+
+    first = Thread(target=configure_first, daemon=True)
+    second = Thread(target=configure_second, daemon=True)
+    monkeypatch.setattr(manager, "_lock", CoordinatedLock(second, competing))
+    try:
+        first.start()
+        assert creating.wait(5)
+        second.start()
+        assert competing.wait(5)
+    finally:
+        release.set()
+        first.join(6)
+        if second.ident is not None:
+            second.join(6)
+
+    assert not first.is_alive()
+    assert not second.is_alive()
+    assert errors == []
+    assert len(created) == (2 if action == "setup" else 1)
+    assert manager["shared"].maxsize == 20
+    if action != "register":
+        assert manager["shared"] is created[-1]
+        assert manager["shared"].get("saved") == "value"
+    else:
+        assert manager["shared"] is registered
 
 
 def test_cache_manager_setup():
