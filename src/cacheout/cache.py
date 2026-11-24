@@ -834,7 +834,8 @@ def _make_memoize_key(  # noqa: PLR0917
         bound.arguments[varkw] = {**bound.arguments[varkw], **extra}
 
     # Argument order is fixed by the signature, so values alone identify the call.
-    return func, tuple(_freeze(value, typed) for value in bound.arguments.values())
+    # Keep modes separate: a typed scalar tag can equal an untyped literal tuple.
+    return func, (typed, tuple(_freeze(value, typed) for value in bound.arguments.values()))
 
 
 def _is_hashable(value: t.Any) -> bool:
