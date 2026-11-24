@@ -610,6 +610,9 @@ class Cache:
                 return None
 
             ttl = expire_time - self.timer()
+            if ttl <= 0:
+                self._delete(key, RemovalCause.EXPIRED)
+                return None
             return ttl
 
     def evict(self) -> int:
