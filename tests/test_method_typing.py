@@ -3,7 +3,6 @@ from pathlib import Path
 from mypy import api
 import pytest
 
-import cacheout
 from cacheout import Cache
 
 from .test_typing import MEMOIZERS, PUBLIC_IMPORTS
@@ -64,8 +63,7 @@ async def check_{i}() -> None:
     )
     source.write_text(prefix + classes + checks, encoding="utf-8")
     config = tmp_path / "mypy.ini"
-    package_root = Path(cacheout.__file__).resolve().parent.parent
-    config.write_text(f"[mypy]\nstrict = True\nmypy_path = {package_root}\n", encoding="utf-8")
+    config.write_text("[mypy]\nstrict = True\n", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("MYPYPATH", raising=False)
     arguments = [
