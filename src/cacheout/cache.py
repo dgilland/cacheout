@@ -5,7 +5,7 @@ from collections import OrderedDict
 from decimal import Decimal
 from enum import Enum, auto
 import fnmatch
-from functools import wraps
+from functools import partial, wraps
 import inspect
 import re
 from threading import RLock
@@ -707,7 +707,7 @@ class Cache:
     ) -> T_MEMOIZED_DECORATOR:
         """
         Decorator that wraps a function with a memoizing callable and works on both synchronous and
-        asynchronous functions.
+        asynchronous functions, including callable objects with an asynchronous ``__call__``.
 
         Each return value from the function will be cached using the function arguments as the cache
         key. The cache object can be accessed at ``<function>.cache``. The uncached version (i.e.
@@ -755,7 +755,14 @@ class Cache:
                     )
                 )
 
-            if inspect.iscoroutinefunction(func):
+            target: t.Any = func
+            while isinstance(target, partial):
+                target = target.func
+            is_async = inspect.iscoroutinefunction(target) or (
+                not inspect.isclass(target) and inspect.iscoroutinefunction(target.__call__)
+            )
+
+            if is_async:
 
                 @wraps(func)
                 async def decorated(*args, **kwargs):
