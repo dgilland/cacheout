@@ -17,7 +17,9 @@ from .stats import CacheStatsTracker
 
 
 P = t.ParamSpec("P")
+Q = t.ParamSpec("Q")
 R = t.TypeVar("R")
+T = t.TypeVar("T")
 
 #: Possible types for TTL (time to live) value.
 T_TTL = t.Union[int, float]
@@ -49,6 +51,29 @@ class MemoizedFunction(t.Protocol[P, R]):
     cache: "Cache"
     cache_key: t.Callable[P, t.Hashable]
     uncached: t.Callable[P, R]
+    invalidate: t.Callable[[], int]
+    __name__: str
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
+
+    @t.overload
+    def __get__(
+        self, instance: None, owner: t.Optional[type] = None
+    ) -> "MemoizedFunction[P, R]": ...
+
+    @t.overload
+    def __get__(
+        self: "MemoizedFunction[t.Concatenate[T, Q], R]",
+        instance: T,
+        owner: t.Optional[type] = None,
+    ) -> "_BoundMemoizedFunction[T, Q, R]": ...
+
+
+class _BoundMemoizedFunction(t.Protocol[T, P, R]):
+    cache: "Cache"
+    # Attributes stored on the wrapper function are not bound along with its __call__.
+    cache_key: t.Callable[t.Concatenate[T, P], t.Hashable]
+    uncached: t.Callable[t.Concatenate[T, P], R]
     invalidate: t.Callable[[], int]
     __name__: str
 
@@ -734,7 +759,9 @@ class Cache:
 
         Type annotations preserve the wrapped function's parameters and return type, including
         for ``uncached``. The ``cache_key`` helper accepts the same parameters and returns the
-        hashable cache key. Keys are tuples compared by equality, so distinct arguments can't
+        hashable cache key. Memoized methods bind the instance when called, while their
+        ``uncached`` and ``cache_key`` helpers still require an explicit instance argument.
+        Keys are tuples compared by equality, so distinct arguments can't
         collide. Unhashable arguments are frozen structurally (lists, tuples, dicts, sets) or
         matched by identity as a last resort. ``<function>.invalidate()`` deletes every cache entry
         for the function and returns the number of entries removed. Unhashable callable objects
