@@ -863,23 +863,39 @@ def _is_hashable(value: t.Any) -> bool:
     return True
 
 
-def _freeze(value: t.Any, typed: bool) -> t.Hashable:
+def _freeze(value: t.Any, typed: bool, active: t.Optional[set[int]] = None) -> t.Hashable:
     """Return an equality-preserving hashable stand-in for value (copies mutable containers)."""
+    if active is None:
+        active = set()
+    if id(value) in active:
+        # Keep only the recursive edge by identity; other fields remain structural.
+        frozen = _Identity(value)
+        return (type(value), frozen) if typed else frozen
+    active.add(id(value))
+    try:
+        return _freeze_value(value, typed, active)
+    finally:
+        active.remove(id(value))
+
+
+def _freeze_value(value: t.Any, typed: bool, active: set[int]) -> t.Hashable:
     hashable = _is_hashable(value)
 
     if isinstance(value, tuple) and (typed or not hashable):
-        frozen: t.Hashable = (_TUPLE, tuple(_freeze(v, typed) for v in value))
+        frozen: t.Hashable = (_TUPLE, tuple(_freeze(v, typed, active) for v in value))
     elif hashable:
         frozen = value
     elif isinstance(value, list):
-        frozen = (_LIST, tuple(_freeze(v, typed) for v in value))
+        frozen = (_LIST, tuple(_freeze(v, typed, active) for v in value))
     elif isinstance(value, dict):
         frozen = (
             _DICT,
-            frozenset((_freeze(k, typed), _freeze(v, typed)) for k, v in value.items()),
+            frozenset(
+                (_freeze(k, typed, active), _freeze(v, typed, active)) for k, v in value.items()
+            ),
         )
     elif isinstance(value, set):
-        frozen = (_SET, frozenset(_freeze(v, typed) for v in value))
+        frozen = (_SET, frozenset(_freeze(v, typed, active) for v in value))
     else:
         frozen = _Identity(value)
 
