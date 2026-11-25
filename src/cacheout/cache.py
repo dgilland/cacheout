@@ -5,7 +5,7 @@ from collections import OrderedDict
 from decimal import Decimal
 from enum import Enum, auto
 import fnmatch
-from functools import wraps
+from functools import partial, wraps
 import inspect
 import re
 from threading import RLock
@@ -60,6 +60,14 @@ class MemoizedDecorator(t.Protocol):
 
 #: Memoized decorator type.
 T_MEMOIZED_DECORATOR = MemoizedDecorator
+
+
+class _EmptyCacheError(StopIteration):
+    """No entry can be selected for eviction."""
+
+
+class _MissingCacheKeyError(KeyError):
+    """The eviction policy selected a stale key."""
 
 
 class RemovalCause(Enum):
@@ -610,6 +618,9 @@ class Cache:
                 return None
 
             ttl = expire_time - self.timer()
+            if ttl <= 0:
+                self._delete(key, RemovalCause.EXPIRED)
+                return None
             return ttl
 
     def evict(self) -> int:
@@ -635,9 +646,9 @@ class Cache:
             while self.full():
                 try:
                     self._popitem(RemovalCause.FULL)
-                except StopIteration:  # pragma: no cover
+                except _EmptyCacheError:  # pragma: no cover
                     break
-                except KeyError:  # pragma: no cover
+                except _MissingCacheKeyError:  # pragma: no cover
                     pass
                 else:
                     count += 1
@@ -661,7 +672,7 @@ class Cache:
         try:
             key = next(self)
         except StopIteration as exc:
-            raise StopIteration("popitem(): cache is empty") from exc
+            raise _EmptyCacheError("popitem(): cache is empty") from exc
 
         try:
             value = self._cache[key]
@@ -670,7 +681,9 @@ class Cache:
 
             if isinstance(self, LFUCache):
                 self._access_counts.pop(key, None)
-                raise KeyError(f"ghost LFU access counter for missing key: {key}") from exc
+                raise _MissingCacheKeyError(
+                    f"ghost LFU access counter for missing key: {key}"
+                ) from exc
             raise  # pragma: no cover
 
         self._delete(key, cause)
@@ -693,6 +706,8 @@ class Cache:
                 return isinstance(key, str) and iteratee.match(key) is not None
 
         elif callable(iteratee):
+            # A predicate can read an LRU entry or otherwise mutate the cache.
+            target = list(self._cache)
             filter_by = iteratee
         else:
             target = iteratee
@@ -707,7 +722,7 @@ class Cache:
     ) -> T_MEMOIZED_DECORATOR:
         """
         Decorator that wraps a function with a memoizing callable and works on both synchronous and
-        asynchronous functions.
+        asynchronous functions, including callable objects with an asynchronous ``__call__``.
 
         Each return value from the function will be cached using the function arguments as the cache
         key. The cache object can be accessed at ``<function>.cache``. The uncached version (i.e.
@@ -736,7 +751,16 @@ class Cache:
         def decorator(func: t.Callable[P, R]) -> MemoizedFunction[P, R]:
             # Preserve hashable callable keys and retain unhashable callables by identity.
             func_key = func if _is_hashable(func) else _Identity(func)
-            signature = inspect.signature(func, follow_wrapped=False)
+            try:
+                signature = inspect.signature(func, follow_wrapped=False)
+            except (TypeError, ValueError):
+                # Some C callables (e.g. max) do not expose a signature.
+                signature = inspect.Signature(
+                    [
+                        inspect.Parameter("args", inspect.Parameter.VAR_POSITIONAL),
+                        inspect.Parameter("kwargs", inspect.Parameter.VAR_KEYWORD),
+                    ]
+                )
             params = signature.parameters.values()
             posonly = tuple(p.name for p in params if p.kind is inspect.Parameter.POSITIONAL_ONLY)
             varkw = next((p.name for p in params if p.kind is inspect.Parameter.VAR_KEYWORD), None)
@@ -750,12 +774,26 @@ class Cache:
                         isinstance(key, tuple)
                         and len(key) == 2
                         and (
-                            key[0] is func or (isinstance(key[0], _Identity) and key[0].obj is func)
+                            key[0] is func
+                            or (isinstance(key[0], _Identity) and key[0].obj is func)
+                            or (
+                                inspect.ismethod(func)
+                                and inspect.ismethod(key[0])
+                                and key[0].__self__ is func.__self__
+                                and key[0].__func__ is func.__func__
+                            )
                         )
                     )
                 )
 
-            if inspect.iscoroutinefunction(func):
+            target: t.Any = func
+            while isinstance(target, partial):
+                target = target.func
+            is_async = inspect.iscoroutinefunction(target) or (
+                not inspect.isclass(target) and inspect.iscoroutinefunction(target.__call__)
+            )
+
+            if is_async:
 
                 @wraps(func)
                 async def decorated(*args, **kwargs):
@@ -834,7 +872,8 @@ def _make_memoize_key(  # noqa: PLR0917
         bound.arguments[varkw] = {**bound.arguments[varkw], **extra}
 
     # Argument order is fixed by the signature, so values alone identify the call.
-    return func, tuple(_freeze(value, typed) for value in bound.arguments.values())
+    # Keep modes separate: a typed scalar tag can equal an untyped literal tuple.
+    return func, (typed, tuple(_freeze(value, typed) for value in bound.arguments.values()))
 
 
 def _is_hashable(value: t.Any) -> bool:
@@ -845,25 +884,41 @@ def _is_hashable(value: t.Any) -> bool:
     return True
 
 
-def _freeze(value: t.Any, typed: bool) -> t.Hashable:
+def _freeze(value: t.Any, typed: bool, active: t.Optional[set[int]] = None) -> t.Hashable:
     """Return an equality-preserving hashable stand-in for value (copies mutable containers)."""
+    if active is None:
+        active = set()
+    if id(value) in active:
+        # Keep only the recursive edge by identity; other fields remain structural.
+        frozen = _Identity(value)
+        return (type(value), frozen) if typed else frozen
+    active.add(id(value))
+    try:
+        return _freeze_value(value, typed, active)
+    finally:
+        active.remove(id(value))
+
+
+def _freeze_value(value: t.Any, typed: bool, active: set[int]) -> t.Hashable:
     hashable = _is_hashable(value)
 
     if isinstance(value, tuple) and (typed or not hashable):
-        frozen: t.Hashable = (_TUPLE, tuple(_freeze(v, typed) for v in value))
+        frozen: t.Hashable = (_TUPLE, tuple(_freeze(v, typed, active) for v in value))
     elif isinstance(value, frozenset) and typed:
-        frozen = (_SET, frozenset(_freeze(v, typed) for v in value))
+        frozen = (_SET, frozenset(_freeze(v, typed, active) for v in value))
     elif hashable:
         frozen = value
     elif isinstance(value, list):
-        frozen = (_LIST, tuple(_freeze(v, typed) for v in value))
+        frozen = (_LIST, tuple(_freeze(v, typed, active) for v in value))
     elif isinstance(value, dict):
         frozen = (
             _DICT,
-            frozenset((_freeze(k, typed), _freeze(v, typed)) for k, v in value.items()),
+            frozenset(
+                (_freeze(k, typed, active), _freeze(v, typed, active)) for k, v in value.items()
+            ),
         )
     elif isinstance(value, set):
-        frozen = (_SET, frozenset(_freeze(v, typed) for v in value))
+        frozen = (_SET, frozenset(_freeze(v, typed, active) for v in value))
     else:
         frozen = _Identity(value)
 

@@ -1,4 +1,4 @@
-from threading import Event, RLock, Thread
+from threading import Event, RLock, Thread, current_thread
 
 import pytest
 
@@ -182,6 +182,48 @@ def test_stats_tracker_resume(cache: Cache):
     assert info.miss_rate == 0.8
     assert info.eviction_rate == 0.2
     assert info.entry_count == 2
+
+
+@pytest.mark.parametrize("counter", ["hit_count", "miss_count", "eviction_count"])
+@pytest.mark.parametrize("action", ["pause", "disable"])
+def test_stats_tracker_stops_queued_increments(monkeypatch, counter, action):
+    cache = Cache(enable_stats=True)
+    increment = getattr(cache.stats, f"inc_{counter}")
+    increment(3)
+    waiting = Event()
+    errors = []
+
+    class CoordinatedLock:
+        def __init__(self):
+            self.lock = RLock()
+
+        def __enter__(self):
+            if current_thread() is worker:
+                waiting.set()
+            if not self.lock.acquire(timeout=5):
+                raise TimeoutError("statistics increment remained blocked")
+            return self
+
+        def __exit__(self, *args):
+            self.lock.release()
+
+    def increment_in_thread():
+        try:
+            increment(2)
+        except Exception as exc:
+            errors.append(exc)
+
+    worker = Thread(target=increment_in_thread, daemon=True)
+    monkeypatch.setattr(cache.stats, "_lock", CoordinatedLock())
+    with cache.stats._lock:
+        worker.start()
+        assert waiting.wait(5)
+        getattr(cache.stats, action)()
+
+    worker.join(6)
+    assert not worker.is_alive()
+    assert errors == []
+    assert getattr(cache.stats.info(), counter) == (0 if action == "disable" else 3)
 
 
 def test_stats_tracker_disable(cache: Cache):

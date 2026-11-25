@@ -76,14 +76,15 @@ class CacheManager:
             settings (dict, optional): A ``dict`` indexed by each cache name that contains the
                 options for each named cache.
         """
-        self._caches: t.Dict[t.Hashable, Cache] = {}
+        with self._lock:
+            self._caches: t.Dict[t.Hashable, Cache] = {}
 
-        if settings is not None:
-            if not isinstance(settings, dict):
-                raise TypeError("settings must be a dict")
+            if settings is not None:
+                if not isinstance(settings, dict):
+                    raise TypeError("settings must be a dict")
 
-            for name, options in settings.items():
-                self.configure(name, **options)
+                for name, options in settings.items():
+                    self.configure(name, **options)
 
     def configure(self, name: t.Hashable, **options: t.Any) -> None:
         """
@@ -96,12 +97,13 @@ class CacheManager:
             name: Cache name identifier.
             **options: Cache options.
         """
-        try:
-            cache = self[name]
-        except KeyError:
-            self.register(name, self._create_cache(**options))
-        else:
-            cache.configure(**options)
+        with self._lock:
+            try:
+                cache = self[name]
+            except KeyError:
+                self.register(name, self._create_cache(**options))
+            else:
+                cache.configure(**options)
 
     def _create_cache(
         self, cache_class: t.Optional[t.Callable[..., Cache]] = None, **options: t.Any
@@ -111,7 +113,8 @@ class CacheManager:
 
     def register(self, name: t.Hashable, cache: Cache) -> None:
         """Register a named cache instance."""
-        self._caches[name] = cache
+        with self._lock:
+            self._caches[name] = cache
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.cache_names()})"
