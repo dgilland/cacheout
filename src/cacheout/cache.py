@@ -10,6 +10,7 @@ import inspect
 import re
 from threading import RLock
 import time
+from types import BuiltinMethodType, MethodWrapperType
 import typing as t
 
 from .stats import CacheStatsTracker
@@ -776,6 +777,11 @@ class Cache:
                         and (
                             key[0] is func
                             or (isinstance(key[0], _Identity) and key[0].obj is func)
+                            or (
+                                isinstance(func, (BuiltinMethodType, MethodWrapperType))
+                                and type(key[0]) is type(func)
+                                and key[0] == func
+                            )
                             or (
                                 inspect.ismethod(func)
                                 and inspect.ismethod(key[0])
