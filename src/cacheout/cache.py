@@ -62,6 +62,14 @@ class MemoizedDecorator(t.Protocol):
 T_MEMOIZED_DECORATOR = MemoizedDecorator
 
 
+class _EmptyCacheError(StopIteration):
+    """No entry can be selected for eviction."""
+
+
+class _MissingCacheKeyError(KeyError):
+    """The eviction policy selected a stale key."""
+
+
 class RemovalCause(Enum):
     """
     An enum to represent the cause for the removal of a cache entry.
@@ -638,9 +646,9 @@ class Cache:
             while self.full():
                 try:
                     self._popitem(RemovalCause.FULL)
-                except StopIteration:  # pragma: no cover
+                except _EmptyCacheError:  # pragma: no cover
                     break
-                except KeyError:  # pragma: no cover
+                except _MissingCacheKeyError:  # pragma: no cover
                     pass
                 else:
                     count += 1
@@ -664,7 +672,7 @@ class Cache:
         try:
             key = next(self)
         except StopIteration as exc:
-            raise StopIteration("popitem(): cache is empty") from exc
+            raise _EmptyCacheError("popitem(): cache is empty") from exc
 
         try:
             value = self._cache[key]
@@ -673,7 +681,9 @@ class Cache:
 
             if isinstance(self, LFUCache):
                 self._access_counts.pop(key, None)
-                raise KeyError(f"ghost LFU access counter for missing key: {key}") from exc
+                raise _MissingCacheKeyError(
+                    f"ghost LFU access counter for missing key: {key}"
+                ) from exc
             raise  # pragma: no cover
 
         self._delete(key, cause)
