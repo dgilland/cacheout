@@ -830,7 +830,7 @@ class Cache:
 
 
 # Unique tags so frozen containers can't equal user data (e.g. [1] vs (1,) vs a literal tuple).
-_LIST, _TUPLE, _DICT, _SET = (object() for _ in range(4))
+_LIST, _TUPLE, _DICT, _SET, _ORDERED_DICT = (object() for _ in range(5))
 
 
 class _Identity:
@@ -910,6 +910,11 @@ def _freeze_value(value: t.Any, typed: bool, active: set[int]) -> t.Hashable:
         frozen = value
     elif isinstance(value, list):
         frozen = (_LIST, tuple(_freeze(v, typed, active) for v in value))
+    elif isinstance(value, OrderedDict):
+        frozen = (
+            _ORDERED_DICT,
+            tuple((_freeze(k, typed, active), _freeze(v, typed, active)) for k, v in value.items()),
+        )
     elif isinstance(value, dict):
         frozen = (
             _DICT,
