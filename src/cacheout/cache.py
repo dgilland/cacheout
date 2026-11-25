@@ -736,7 +736,16 @@ class Cache:
         def decorator(func: t.Callable[P, R]) -> MemoizedFunction[P, R]:
             # Preserve hashable callable keys and retain unhashable callables by identity.
             func_key = func if _is_hashable(func) else _Identity(func)
-            signature = inspect.signature(func, follow_wrapped=False)
+            try:
+                signature = inspect.signature(func, follow_wrapped=False)
+            except (TypeError, ValueError):
+                # Some C callables (e.g. max) do not expose a signature.
+                signature = inspect.Signature(
+                    [
+                        inspect.Parameter("args", inspect.Parameter.VAR_POSITIONAL),
+                        inspect.Parameter("kwargs", inspect.Parameter.VAR_KEYWORD),
+                    ]
+                )
             params = signature.parameters.values()
             posonly = tuple(p.name for p in params if p.kind is inspect.Parameter.POSITIONAL_ONLY)
             varkw = next((p.name for p in params if p.kind is inspect.Parameter.VAR_KEYWORD), None)
