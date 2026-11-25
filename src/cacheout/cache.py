@@ -173,6 +173,7 @@ class Cache:
         Configure cache settings.
 
         This method is meant to support runtime level configurations for global level cache objects.
+        Invalid options leave the existing configuration unchanged.
         """
         if maxsize is not None:
             if not isinstance(maxsize, int):
@@ -181,8 +182,6 @@ class Cache:
             if not maxsize >= 0:
                 raise ValueError("maxsize must be greater than or equal to 0")
 
-            self.maxsize = maxsize
-
         if ttl is not None:
             if not isinstance(ttl, (int, float, Decimal)):
                 raise TypeError("ttl must be a number")
@@ -190,21 +189,27 @@ class Cache:
             if not ttl >= 0:
                 raise ValueError("ttl must be greater than or equal to 0")
 
-            self.ttl = ttl
-
         if timer is not None:
             if not callable(timer):
                 raise TypeError("timer must be a callable")
 
+        if enable_stats is not UNSET:
+            if not isinstance(enable_stats, bool):
+                raise TypeError("enable_stats must be a boolean")
+
+        if maxsize is not None:
+            self.maxsize = maxsize
+
+        if ttl is not None:
+            self.ttl = ttl
+
+        if timer is not None:
             self.timer = timer
 
         if default is not UNSET:
             self.default = default
 
         if enable_stats is not UNSET:
-            if not isinstance(enable_stats, bool):
-                raise TypeError("enable_stats must be a boolean")
-
             if enable_stats:
                 self.stats.enable()
             else:
