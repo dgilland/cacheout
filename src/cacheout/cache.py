@@ -904,6 +904,8 @@ def _freeze_value(value: t.Any, typed: bool, active: set[int]) -> t.Hashable:
 
     if isinstance(value, tuple) and (typed or not hashable):
         frozen: t.Hashable = (_TUPLE, tuple(_freeze(v, typed, active) for v in value))
+    elif isinstance(value, frozenset) and typed:
+        frozen = (_SET, frozenset(_freeze(v, typed, active) for v in value))
     elif hashable:
         frozen = value
     elif isinstance(value, list):
