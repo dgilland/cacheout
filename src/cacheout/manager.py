@@ -77,14 +77,16 @@ class CacheManager:
                 options for each named cache.
         """
         with self._lock:
-            self._caches: t.Dict[t.Hashable, Cache] = {}
+            caches: t.Dict[t.Hashable, Cache] = {}
 
             if settings is not None:
                 if not isinstance(settings, dict):
                     raise TypeError("settings must be a dict")
 
                 for name, options in settings.items():
-                    self.configure(name, **options)
+                    caches[name] = self._create_cache(**options)
+
+            self._caches = caches
 
     def configure(self, name: t.Hashable, **options: t.Any) -> None:
         """
