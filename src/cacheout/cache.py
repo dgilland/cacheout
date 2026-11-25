@@ -761,7 +761,14 @@ class Cache:
                         isinstance(key, tuple)
                         and len(key) == 2
                         and (
-                            key[0] is func or (isinstance(key[0], _Identity) and key[0].obj is func)
+                            key[0] is func
+                            or (isinstance(key[0], _Identity) and key[0].obj is func)
+                            or (
+                                inspect.ismethod(func)
+                                and inspect.ismethod(key[0])
+                                and key[0].__self__ is func.__self__
+                                and key[0].__func__ is func.__func__
+                            )
                         )
                     )
                 )
