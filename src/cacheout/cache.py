@@ -887,6 +887,11 @@ def _is_hashable(value: t.Any) -> bool:
         hash(value)
     except TypeError:
         return False
+    except ValueError:
+        # Writable views and views with non-byte formats cannot be hashed.
+        if isinstance(value, memoryview):
+            return False
+        raise
     return True
 
 
