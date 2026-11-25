@@ -360,6 +360,38 @@ def test_cache_get_ttl(cache: Cache, timer: Timer):
     assert cache.get_ttl("c") is None
 
 
+@parametrize("elapsed", [1, 2])
+@parametrize("cache_class", CACHE_CLASSES)
+def test_cache_get_ttl_expires_during_read_callback(cache_class, timer: Timer, elapsed):
+    cache = cache_class(timer=timer)
+    removed = []
+    cache.set("key", "value", ttl=1)
+
+    def on_get(key, value, existed):
+        timer.time += elapsed
+
+    cache.on_get = on_get
+    cache.on_delete = lambda key, value, cause: removed.append((key, value, cause))
+    assert cache.get_ttl("key") is None
+    assert len(cache) == 0
+    assert cache.expire_times() == {}
+    assert removed == [("key", "value", RemovalCause.EXPIRED)]
+
+
+@parametrize("cache_class", CACHE_CLASSES)
+def test_cache_get_ttl_uses_deadline_refreshed_by_read_callback(cache_class, timer: Timer):
+    cache = cache_class(timer=timer)
+    cache.set("key", "old", ttl=1)
+
+    def on_get(key, value, existed):
+        timer.time += 2
+        cache.set(key, "new", ttl=5)
+
+    cache.on_get = on_get
+    assert cache.get_ttl("key") == 5
+    assert cache.copy() == {"key": "new"}
+
+
 def test_cache_evict(cache: Cache):
     """Test that cache.evict() will remove cache keys to make room."""
     maxsize = 5
