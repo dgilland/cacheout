@@ -693,6 +693,8 @@ class Cache:
                 return isinstance(key, str) and iteratee.match(key) is not None
 
         elif callable(iteratee):
+            # A predicate can read an LRU entry or otherwise mutate the cache.
+            target = list(self._cache)
             filter_by = iteratee
         else:
             target = iteratee
