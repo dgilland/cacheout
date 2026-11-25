@@ -70,21 +70,24 @@ class CacheManager:
 
         Warning:
             Calling this method will destroy **all** previously configured named caches and replace
-            them with what is defined in `settings`.
+            them with what is defined in `settings`, once all replacements have been created.
+            Invalid settings or an exception from a cache factory leave the existing caches intact.
 
         Args:
             settings (dict, optional): A ``dict`` indexed by each cache name that contains the
                 options for each named cache.
         """
         with self._lock:
-            self._caches: t.Dict[t.Hashable, Cache] = {}
+            caches: t.Dict[t.Hashable, Cache] = {}
 
             if settings is not None:
                 if not isinstance(settings, dict):
                     raise TypeError("settings must be a dict")
 
                 for name, options in settings.items():
-                    self.configure(name, **options)
+                    caches[name] = self._create_cache(**options)
+
+            self._caches = caches
 
     def configure(self, name: t.Hashable, **options: t.Any) -> None:
         """
