@@ -25,6 +25,11 @@ class LFUCache(Cache):
 
     def __next__(self) -> t.Hashable:
         with self._lock:
+            # An on_set callback can evict before the outer operation records its access.
+            # These live entries have no accesses yet and must remain eligible for eviction.
+            for key in self._cache:
+                if key not in self._access_counts:
+                    return key
             try:
                 return self._access_counts.most_common(n=1)[0][0]
             except (ValueError, IndexError) as exc:  # pragma: no cover
