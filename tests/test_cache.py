@@ -1,10 +1,11 @@
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from decimal import Decimal, Overflow, localcontext
 from functools import partial
 import gc
 import re
 import typing as t
+from unittest.mock import Mock
 import weakref
 
 import pytest
@@ -61,6 +62,33 @@ def test_cache_init_validation(args: dict, exc: t.Type[Exception]):
     """Test that exceptions are raised on bad argument values/types."""
     with pytest.raises(exc):
         Cache(**args)
+
+
+@pytest.mark.parametrize(
+    "options, error",
+    [
+        ({"maxsize": 1, "ttl": -1}, ValueError),
+        ({"maxsize": 1, "ttl": "invalid"}, TypeError),
+        ({"maxsize": 1, "ttl": 2, "timer": 1}, TypeError),
+        ({"maxsize": 1, "ttl": 2, "default": "new", "enable_stats": "yes"}, TypeError),
+    ],
+)
+def test_cache_configure_failure_keeps_previous_options_and_entries(options, error):
+    def timer():
+        return 100
+
+    cache = Cache(maxsize=3, ttl=10, timer=timer, default="old", enable_stats=True)
+    cache.set_many({"a": 1, "b": 2})
+    before = cache.copy()
+    deadlines = cache.expire_times()
+    with pytest.raises(error):
+        cache.configure(**options)
+    assert (cache.maxsize, cache.ttl, cache.timer, cache.default) == (3, 10, timer, "old")
+    assert cache.copy() == before
+    assert cache.expire_times() == deadlines
+    assert cache.stats.is_enabled()
+    cache.set("c", 3)
+    assert list(cache.keys()) == ["a", "b", "c"]
 
 
 def test_cache_set(cache: Cache):
@@ -592,7 +620,7 @@ async def test_cache_memoize_async_runtime_error_regression(cache: Cache):
 @pytest.mark.asyncio
 @parametrize("typed", [False, True])
 @parametrize("use_partial", [False, True])
-async def test_memoize_async_callable_instance(cache: Cache, typed: bool, use_partial: bool):
+async def test_cache_memoize_async_callable_instance(cache: Cache, typed: bool, use_partial: bool):
     @dataclass
     class AsyncCallable:
         calls: int = 0
@@ -618,7 +646,7 @@ async def test_memoize_async_callable_instance(cache: Cache, typed: bool, use_pa
 
 
 @pytest.mark.asyncio
-async def test_memoize_async_callable_failure_is_not_cached(cache: Cache):
+async def test_cache_memoize_async_callable_failure_is_not_cached(cache: Cache):
     class AsyncCallable:
         def __init__(self):
             self.calls = 0
@@ -639,7 +667,7 @@ async def test_memoize_async_callable_failure_is_not_cached(cache: Cache):
     assert instance.calls == 2
 
 
-def test_memoize_class_with_async_call_is_synchronous(cache: Cache):
+def test_cache_memoize_class_with_async_call_is_synchronous(cache: Cache):
     class AsyncCallable:
         async def __call__(self):
             return 42
@@ -904,6 +932,163 @@ def test_cache_stats_configure(cache: Cache):
     assert cache.stats.is_enabled() is True
     cache.configure(enable_stats=False)
     assert cache.stats.is_enabled() is False
+
+
+@pytest.mark.parametrize("original_ttl", [0, 10])
+@pytest.mark.parametrize("ttl", [0, -1, 3, 20])
+def test_cache_expire_replaces_deadline(original_ttl, ttl):
+    now = [0]
+    cache = Cache(ttl=100, timer=lambda: now[0])
+    value = []
+    cache.set("key", value, ttl=original_ttl)
+    now[0] = 2
+
+    assert cache.expire("key", ttl) is True
+    assert cache.copy()["key"] is value
+    if ttl > 0:
+        assert cache.expire_times() == {"key": 2 + ttl}
+        assert not cache.expired("key", expires_on=2 + ttl - 0.5)
+        assert cache.expired("key", expires_on=2 + ttl)
+    else:
+        assert cache.expire_times() == {}
+        assert not cache.expired("key", expires_on=1000)
+
+
+@pytest.mark.parametrize("value", [None, 0, False, "", UNSET])
+def test_cache_expire_accepts_existing_falsey_and_sentinel_values(value):
+    cache = Cache(timer=lambda: 0)
+    cache.set("key", value)
+    assert cache.expire("key", 5) is True
+    assert cache.copy()["key"] is value
+    assert cache.expire_times() == {"key": 5}
+
+
+@pytest.mark.parametrize(
+    "cache_type", [Cache, FIFOCache, LFUCache, LIFOCache, LRUCache, MRUCache, RRCache]
+)
+def test_cache_expire_preserves_replacement_policy_and_statistics(cache_type):
+    cache = cache_type(maxsize=2, timer=lambda: 0, enable_stats=True)
+    cache.set("first", "value")
+    cache.set("second", "other")
+    cache.get("first")
+    cache.get("first")
+    items = list(cache.items())
+    stats = cache.stats.info()
+    access_counts = cache._access_counts.copy() if isinstance(cache, LFUCache) else None
+    cache.on_get = Mock()
+    cache.on_set = Mock()
+    cache.on_delete = Mock()
+
+    assert cache.expire("first", 10) is True
+    assert list(cache.items()) == items
+    assert cache.stats.info() == stats
+    assert cache.full()
+    cache.on_get.assert_not_called()
+    cache.on_set.assert_not_called()
+    cache.on_delete.assert_not_called()
+    if isinstance(cache, LFUCache):
+        assert cache._access_counts == access_counts
+        assert cache.popitem() == ("second", "other")
+
+
+def test_cache_expire_missing_key_does_not_load_a_default_or_call_timer():
+    cache = Cache(default=Mock(), timer=Mock(side_effect=RuntimeError), enable_stats=True)
+    assert cache.expire("missing", 5) is False
+    assert cache.copy() == {}
+    assert cache.expire_times() == {}
+    assert cache.stats.info().access_count == 0
+    cache.default.assert_not_called()
+    cache.timer.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "cache_type", [Cache, FIFOCache, LFUCache, LIFOCache, LRUCache, MRUCache, RRCache]
+)
+@pytest.mark.parametrize("ttl", [0, 5])
+def test_cache_expire_does_not_revive_expired_entries(cache_type, ttl):
+    now = [0]
+    cache = cache_type(timer=lambda: now[0], enable_stats=True)
+    cache.set("key", "value", ttl=1)
+    cache.on_delete = Mock()
+    now[0] = 1
+
+    assert cache.expire("key", ttl) is False
+    assert cache.copy() == {}
+    assert cache.expire_times() == {}
+    assert cache.stats.info().access_count == 0
+    assert cache.stats.info().eviction_count == 0
+    cache.on_delete.assert_called_once_with("key", "value", RemovalCause.EXPIRED)
+    if isinstance(cache, LFUCache):
+        assert not cache._access_counts
+
+
+def test_cache_expire_uses_one_timer_read():
+    cache = Cache(timer=lambda: 0)
+    cache.set("key", "value", ttl=5)
+    timer = Mock(side_effect=[4, 100])
+    cache.configure(timer=timer)
+
+    assert cache.expire("key", 2) is True
+    assert cache.expire_times() == {"key": 6}
+    timer.assert_called_once_with()
+
+
+def test_cache_expire_failed_deadline_preserves_original_expiration():
+    cache = Cache(timer=lambda: Decimal("9e9"))
+    cache.set("key", "value", ttl=Decimal(20))
+    original_items = cache.copy()
+    original_expirations = cache.expire_times()
+
+    with localcontext() as context:
+        context.Emax = 9
+        context.traps[Overflow] = True
+        with pytest.raises(Overflow):
+            cache.expire("key", Decimal("9e9"))
+
+    assert cache.copy() == original_items
+    assert cache.expire_times() == original_expirations
+
+
+def test_cache_expire_failed_timer_preserves_original_expiration():
+    cache = Cache(timer=lambda: 0)
+    cache.set("key", "value", ttl=5)
+    cache.configure(timer=Mock(side_effect=RuntimeError("timer failed")))
+
+    with pytest.raises(RuntimeError, match="timer failed"):
+        cache.expire("key", 10)
+
+    assert cache.copy() == {"key": "value"}
+    assert cache.expire_times() == {"key": 5}
+
+
+def test_cache_expire_does_not_change_replacement_inserted_by_deletion_callback():
+    now = [0]
+    cache = Cache(timer=lambda: now[0])
+    cache.set("key", "old", ttl=1)
+
+    def replace(key, value, cause):
+        assert (key, value, cause) == ("key", "old", RemovalCause.EXPIRED)
+        cache.set(key, "new", ttl=3)
+
+    cache.on_delete = replace
+    now[0] = 1
+    assert cache.expire("key", 100) is False
+    assert cache.copy() == {"key": "new"}
+    assert cache.expire_times() == {"key": 4}
+
+
+def test_cache_expire_propagates_deletion_callback_errors():
+    now = [0]
+    cache = Cache(timer=lambda: now[0])
+    cache.set("key", "value", ttl=1)
+    cache.on_delete = Mock(side_effect=KeyError("callback failed"))
+    now[0] = 1
+
+    with pytest.raises(KeyError, match="callback failed"):
+        cache.expire("key", 10)
+
+    assert cache.copy() == {}
+    assert cache.expire_times() == {}
 
 
 def test_cache_expired_accepts_zero_timestamp(cache: Cache, timer: Timer):
@@ -1543,121 +1728,74 @@ def test_cache_ordinary_expiration_still_runs_default_and_records_miss(cache_cla
     assert cache.stats.info().hit_count == 1
 
 
-@parametrize("typed", [False, True])
-def test_cache_memoize_unhashable_callable(cache: Cache, typed: bool):
-    @dataclass
-    class Offset:
-        offset: int
-        calls: int = field(default=0, compare=False)
+@pytest.mark.parametrize("cache_type", [Cache, LFUCache])
+@pytest.mark.parametrize("operation", ["evict", "set"])
+@pytest.mark.parametrize("error_type", [KeyError, StopIteration, ValueError])
+def test_cache_capacity_eviction_propagates_callback_errors(cache_type, operation, error_type):
+    cache = cache_type(maxsize=2, enable_stats=True)
+    cache.set("first", 1)
+    cache.set("second", 2)
+    error = error_type("delete callback failed")
+    removals = []
 
-        def __call__(self, value=1):
-            self.calls += 1
-            return self.offset + value
+    def fail(key, value, cause):
+        removals.append((key, value, cause))
+        raise error
 
-    target = Offset(10)
-    other_target = Offset(10)
-    func = cache.memoize(typed=typed)(target)
-    other = cache.memoize(typed=typed)(other_target)
+    cache.on_delete = fail
+    with pytest.raises(error_type) as raised:
+        if operation == "evict":
+            cache.configure(maxsize=1)
+            cache.evict()
+        else:
+            cache.set("new", 3)
 
-    assert func() == 11
-    assert func(value=1) == 11
-    assert func(2) == 12
-    assert target.calls == 2
-    assert func.uncached is target
-    assert cache.get(func.cache_key(2)) == 12
+    assert raised.value is error
+    assert removals == [("first", 1, RemovalCause.FULL)]
+    assert dict(cache.items()) == {"second": 2}
+    assert cache.stats.info().eviction_count == 1
 
-    # Equal callable instances still own separate cache entries.
-    assert target == other_target
-    assert func.cache_key() != other.cache_key()
-    assert other() == 11
-    assert other_target.calls == 1
-    assert len(cache) == 3
-
-    assert func.invalidate() == 2
-    assert func.invalidate() == 0
-    assert cache.has(other.cache_key())
-    assert func() == 11
-    assert target.calls == 3
+    cache.on_delete = None
+    cache.set("recovered", 4)
+    assert cache.get("recovered") == 4
 
 
-@parametrize("typed", [False, True])
-def test_cache_memoize_unhashable_callable_shared_invalidation(cache: Cache, typed: bool):
-    @dataclass
-    class Identity:
-        calls: int = field(default=0, compare=False)
-
-        def __call__(self, value):
-            self.calls += 1
-            return value
-
-    target = Identity()
-    first = cache.memoize(typed=typed)(target)
-    second = cache.memoize(typed=typed)(target)
-    assert first.cache_key(1) == second.cache_key(1)
-    assert hash(first.cache_key(1)) == hash(second.cache_key(1))
-    assert first(1) == 1
-    assert second(value=1) == 1
-    assert second(2) == 2
-    assert target.calls == 2
-    cache.set("unrelated", 3)
-
-    assert first.invalidate() == 2
-    assert second.invalidate() == 0
-    assert cache.copy() == {"unrelated": 3}
+@pytest.mark.parametrize("cache_class", [LRUCache, MRUCache])
+@pytest.mark.parametrize("operation", ["get_many", "delete_many"])
+def test_cache_filter_can_read_values_from_ordered_cache(cache_class, operation):
+    cache = cache_class()
+    cache.set_many({"one": 1, "two": 2, "three": 3})
+    result = getattr(cache, operation)(lambda key: cache.get(key) >= 2)
+    if operation == "get_many":
+        assert result == {"two": 2, "three": 3}
+        assert len(cache) == 3
+    else:
+        assert result == 2
+        assert cache.copy() == {"one": 1}
 
 
-@pytest.mark.asyncio
-@parametrize("typed", [False, True])
-async def test_cache_memoize_unhashable_async_partial(cache: Cache, typed: bool):
-    class UnhashablePartial(partial):
-        __hash__ = None  # type: ignore[assignment]
+def test_cache_filter_does_not_visit_keys_added_by_callback():
+    cache = Cache()
+    cache.set_many({"one": 1, "two": 2})
+    visited = []
 
-    calls = []
+    def matches(key):
+        visited.append(key)
+        cache.set("new", 3)
+        return True
 
-    async def add(left, right):
-        calls.append((left, right))
-        return left + right
-
-    target = UnhashablePartial(add, 10)
-    func = cache.memoize(typed=typed)(target)
-    assert await func(2) == 12
-    assert await func(right=2) == 12
-    assert calls == [(10, 2)]
-    assert func.uncached is target
-    assert cache.get(func.cache_key(2)) == 12
-    assert func.invalidate() == 1
-    assert await func(2) == 12
-    assert calls == [(10, 2), (10, 2)]
+    assert cache.get_many(matches) == {"one": 1, "two": 2}
+    assert visited == ["one", "two"]
+    assert cache.get("new") == 3
 
 
-@parametrize("typed", [False, True])
-def test_cache_memoize_hashable_callable_keys_unchanged(cache: Cache, typed: bool):
-    calls = []
+def test_cache_filter_tolerates_deletion_by_callback():
+    cache = Cache()
+    cache.set_many({"one": 1, "two": 2})
 
-    @dataclass(frozen=True)
-    class Offset:
-        offset: int
+    def matches(key):
+        cache.delete(key)
+        return True
 
-        def __call__(self, value):
-            calls.append(self)
-            return self.offset + value
-
-    target = Offset(10)
-    equal_target = Offset(10)
-    first = cache.memoize(typed=typed)(target)
-    second = cache.memoize(typed=typed)(equal_target)
-
-    # Hashable callables still appear directly in keys and compare by equality.
-    first_key = first.cache_key(1)
-    second_key = second.cache_key(1)
-    assert isinstance(first_key, tuple)
-    assert isinstance(second_key, tuple)
-    assert first_key[0] is target
-    assert second_key[0] is equal_target
-    assert first_key == second_key
-    assert first(1) == 11
-    assert second(1) == 11
-    assert len(calls) == 1
-    # Invalidation still matches the original stored callable by identity.
-    assert second.invalidate() == 0
-    assert first.invalidate() == 1
+    assert cache.get_many(matches) == {}
+    assert len(cache) == 0

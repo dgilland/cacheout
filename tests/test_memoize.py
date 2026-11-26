@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from decimal import Decimal
 import typing as t
 from unittest import mock
@@ -264,3 +265,189 @@ async def test_memoize_async_modes_keep_distinct_results():
     untyped = cache.memoize()(target)
     assert await typed(1) == ("int", 1)
     assert await untyped((int, 1)) == ("tuple", (int, 1))
+
+
+@pytest.mark.parametrize("typed", [False, True])
+@pytest.mark.parametrize("method, args", [("count", (1,)), ("__len__", ())])
+def test_memoize_invalidate_shared_native_method_entries(typed, method, args):
+    cache = Cache()
+    values, other_values = [1], [1]
+    first = cache.memoize(typed=typed)(getattr(values, method))
+    second = cache.memoize(typed=typed)(getattr(values, method))
+    other_instance = cache.memoize(typed=typed)(getattr(other_values, method))
+    other_method = cache.memoize(typed=typed)(values.index)
+    cache.set(("unrelated", "entry"), "keep")
+
+    assert first(*args) == 1
+    assert second(*args) == 1
+    assert other_instance(*args) == 1
+    assert other_method(1) == 0
+    assert len(cache) == 4
+
+    values.append(1)
+    assert second.invalidate() == 1
+    assert second(*args) == 2
+    assert first.invalidate() == 1
+    assert len(cache) == 3
+    assert cache.get(other_instance.cache_key(*args)) == 1
+    assert cache.get(other_method.cache_key(1)) == 0
+    assert cache.get(("unrelated", "entry")) == "keep"
+
+
+def test_memoize_invalidate_native_method_clears_both_typing_modes():
+    cache = Cache()
+    values = [1]
+    untyped = cache.memoize()(values.count)
+    typed = cache.memoize(typed=True)(values.count)
+    assert untyped(1) == typed(1) == 1
+    assert len(cache) == 2
+    assert typed.invalidate() == 2
+    assert len(cache) == 0
+
+
+def test_memoize_invalidate_shared_native_class_method_entries():
+    cache = Cache()
+    first = cache.memoize()(dict.fromkeys)
+    second = cache.memoize()(dict.fromkeys)
+    assert first(["a"]) == {"a": None}
+    assert second.invalidate() == 1
+    assert len(cache) == 0
+
+
+@pytest.mark.parametrize("typed", [False, True])
+@pytest.mark.parametrize("kind", ["writable", "format", "unhashable_owner"])
+def test_memoize_unhashable_memoryview_uses_identity(typed, kind):
+    calls = []
+
+    @Cache().memoize(typed=typed)
+    def describe(view):
+        calls.append(view)
+        return view.format, len(view), view.tobytes()
+
+    def make_view():
+        if kind == "writable":
+            return memoryview(bytearray(b"abcd"))
+        if kind == "format":
+            return memoryview(b"abcd").cast("H")
+        return memoryview(bytearray(b"abcd")).toreadonly()
+
+    first, second = make_view(), make_view()
+    expected = describe.uncached(first)
+    calls.clear()
+    assert describe(first) == expected
+    assert describe(first) == expected
+    assert describe(second) == expected
+    assert len(calls) == 2
+    assert describe.cache_key(first) != describe.cache_key(second)
+    assert describe.invalidate() == 2
+
+
+@pytest.mark.parametrize("typed", [False, True])
+def test_memoize_hashable_memoryviews_still_share_equal_keys(typed):
+    calls = []
+
+    @Cache().memoize(typed=typed)
+    def length(view):
+        calls.append(view)
+        return len(view)
+
+    first, second = memoryview(b"abc"), memoryview(b"abc")
+    assert length(first) == length(second) == 3
+    assert len(calls) == 1
+    assert length.cache_key(first) == length.cache_key(second)
+
+
+def test_memoize_does_not_hide_value_errors_from_custom_hashes():
+    error = ValueError("broken custom hash")
+
+    class BrokenHash:
+        def __hash__(self):
+            raise error
+
+    @Cache().memoize()
+    def identity(value):
+        pytest.fail("The original hash failure should propagate before calling the function")
+
+    with pytest.raises(ValueError) as raised:
+        identity(BrokenHash())
+    assert raised.value is error
+
+
+@pytest.mark.parametrize("typed", [False, True])
+def test_memoize_distinguishes_unequal_ordered_mappings(typed):
+    calls = []
+
+    @Cache().memoize(typed=typed)
+    def keys(mapping):
+        calls.append(mapping)
+        return tuple(mapping)
+
+    first = OrderedDict([("a", 1), ("b", 2)])
+    second = OrderedDict(reversed(list(first.items())))
+    assert first != second
+    assert keys(first) == ("a", "b")
+    assert keys(second) == ("b", "a")
+    assert keys(OrderedDict(first)) == ("a", "b")
+    assert len(calls) == 2
+    assert keys.invalidate() == 2
+
+
+@pytest.mark.parametrize("typed", [False, True])
+def test_memoize_copies_ordered_mapping_order(typed):
+    @Cache().memoize(typed=typed)
+    def keys(mapping):
+        return tuple(mapping)
+
+    mapping = OrderedDict([("a", 1), ("b", 2)])
+    assert keys(mapping) == ("a", "b")
+    mapping.move_to_end("a")
+    assert keys(mapping) == ("b", "a")
+    mapping.move_to_end("b")
+    assert keys(mapping) == ("a", "b")
+
+
+@pytest.mark.parametrize("typed", [False, True])
+def test_memoize_preserves_nested_ordered_mappings(typed):
+    @Cache().memoize(typed=typed)
+    def keys(value):
+        return tuple(value["items"][0])
+
+    first = OrderedDict([("a", [1]), ("b", [2])])
+    second = OrderedDict(reversed(list(first.items())))
+    assert keys({"items": [first]}) == ("a", "b")
+    assert keys({"items": [second]}) == ("b", "a")
+
+
+@pytest.mark.parametrize("typed", [False, True])
+def test_memoize_ordered_mapping_values_keep_type_and_cycle_handling(typed):
+    @Cache().memoize(typed=typed)
+    def identity(value):
+        return value
+
+    integer = OrderedDict([("value", [1])])
+    floating = OrderedDict([("value", [1.0])])
+    assert (identity.cache_key(integer) != identity.cache_key(floating)) is typed
+
+    recursive = OrderedDict()
+    recursive["self"] = recursive
+    assert identity(recursive) is recursive
+    assert identity(recursive) is recursive
+
+    # Normal dictionaries retain their existing order-insensitive keys.
+    assert identity.cache_key({"a": 1, "b": 2}) == identity.cache_key({"b": 2, "a": 1})
+
+
+def test_memoized_method_binding_and_helpers():
+    cache = Cache()
+
+    class Service:
+        @cache.memoize()
+        def load(self, value: int, /, *, label: str) -> str:
+            return f"{label}: {value}"
+
+    service = Service()
+    assert service.load(1, label="item") == "item: 1"
+    assert Service.load(service, 1, label="item") == "item: 1"
+    assert service.load.uncached(service, 1, label="item") == "item: 1"
+    assert service.load.cache_key(service, 1, label="item") in cache
+    assert service.load.invalidate() == 1
